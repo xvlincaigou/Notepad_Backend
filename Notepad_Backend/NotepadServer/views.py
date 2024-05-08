@@ -1,12 +1,14 @@
 from django.shortcuts import render
 from django.http import HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
+from django.core.exceptions import ObjectDoesNotExist
 
 import json
 import hashlib
 from datetime import datetime
+import os
 
-from .models import File, User, Note
+from .models import File, User, Note, Token
 
 # Create your views here.
 
@@ -19,6 +21,19 @@ def json_body_required(func):
             request.json_body = json.loads(request.body)
         except ValueError:
             return JsonResponse({'error': 'Invalid JSON'}, status=400)
+        return func(request, *args, **kwargs)
+    return wrapper
+
+def token_required(func):
+    def wrapper(request, *args, **kwargs):
+        token = request.META.get('HTTP_AUTHORIZATION')
+        if not token:
+            return JsonResponse({'error': 'Token required'}, status=401)
+        try:
+            token = Token.objects.get(token=token)
+        except ObjectDoesNotExist:
+            return JsonResponse({'error': 'Invalid token'}, status=401)
+        request.user = token.user
         return func(request, *args, **kwargs)
     return wrapper
 
@@ -45,8 +60,12 @@ def register(request):
     user = User(userID=hex_dig[:8], username=username, password=password)
     user.save()
 
+    # 创建一个新的令牌
+    token = hashlib.sha256(os.urandom(60)).hexdigest()
+    Token.objects.create(user=user, token=token)
+
     # 返回userID
-    return JsonResponse({'userID': hex_dig[:8]})
+    return JsonResponse({'userID': user.userID, 'token': token})
 
 """
 @brief: 用户登录

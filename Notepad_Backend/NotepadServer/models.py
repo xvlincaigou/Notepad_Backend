@@ -37,3 +37,7 @@ class User(models.Model):
     avatar = models.ImageField(upload_to='data/avatar/', null=True)
     # 个性签名
     personalSignature = models.CharField(max_length=100, null=True)
+
+class Token(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    token = models.CharField(max_length=64)

@@ -6,8 +6,12 @@ import java.net.URL;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import org.json.JSONObject;
 
 public class communicationTest {
+
+    // 保存 token 的变量
+    private static String token = null;
 
     public static void sendPOST() throws IOException {
         URI uri = null;
@@ -39,11 +43,19 @@ public class communicationTest {
                 while ((responseLine = br.readLine()) != null) {
                     response.append(responseLine.trim());
                 }
-                System.out.println(response.toString());
+                // 解析响应体，获取 token
+                JSONObject jsonResponse = new JSONObject(response.toString());
+                token = jsonResponse.getString("token");
+                System.out.println("Token: " + token);
             }
         } else {
             System.out.println("POST request not worked");
         }
+    }
+
+    // 获取 token 的方法
+    public static String getToken() {
+        return token;
     }
 
     public static void main(String[] args) {
