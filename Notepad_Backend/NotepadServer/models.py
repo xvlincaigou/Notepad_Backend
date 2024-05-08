@@ -28,12 +28,12 @@ class Note(models.Model):
 
 class User(models.Model):
     # 用户ID
-    uerID = models.CharField(max_length=30)
+    userID = models.CharField(max_length=30)
     # 用户名
     username = models.CharField(max_length=30)
     # 密码
     password = models.CharField(max_length=30)
     # 头像
-    avatar = models.ImageField()
+    avatar = models.ImageField(upload_to='data/avatar/', null=True)
     # 个性签名
-    personalSignature = models.CharField(max_length=100)
+    personalSignature = models.CharField(max_length=100, null=True)

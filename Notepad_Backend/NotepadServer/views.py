@@ -1,6 +1,12 @@
 from django.shortcuts import render
 from django.http import HttpResponse, JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+
 import json
+import hashlib
+from datetime import datetime
+
+from .models import File, User, Note
 
 # Create your views here.
 
@@ -17,17 +23,30 @@ def json_body_required(func):
     return wrapper
 
 """
-@brief: 用户注册
+@brief: 用户注册，用户只需要提供用户名和密码，而用户唯一的ID是由服务器生成的，会在注册成功后返回给用户
 @param: username: 用户名 password: 密码
 @return: userID: 用户ID
 @date: 24/5/8
 """
+@csrf_exempt
 @json_body_required
 def register(request):
+    # 获取请求的username和password
     data = request.json_body
     username = data.get('username')
     password = data.get('password')
-    pass
+
+    # 生成userID
+    now = datetime.now()
+    hash_object = hashlib.sha1((username + password + now.strftime("%Y-%m-%d %H:%M:%S")).encode())
+    hex_dig = hash_object.hexdigest()
+
+    # 向数据库里面写入数据，这里可以暂时不写入头像和个性签名，用null代替
+    user = User(userID=hex_dig[:8], username=username, password=password)
+    user.save()
+
+    # 返回userID
+    return JsonResponse({'userID': hex_dig[:8]})
 
 """
 @brief: 用户登录
