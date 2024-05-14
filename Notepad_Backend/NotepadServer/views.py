@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from django.http import HttpResponse, JsonResponse
-from django.views.decorators.csrf import csrf_exempt
 from django.core.exceptions import ObjectDoesNotExist
+from django.middleware.csrf import get_token
 
 import json
 import hashlib
@@ -11,7 +11,6 @@ import os
 from .models import File, User, Note, Token
 
 # Create your views here.
-
 def index(request):
     return HttpResponse("Hello, world. You're at the NotepadServer index.")
 
@@ -27,6 +26,7 @@ def json_body_required(func):
 def token_required(func):
     def wrapper(request, *args, **kwargs):
         token = request.META.get('HTTP_AUTHORIZATION')
+        print(token)
         if not token:
             return JsonResponse({'error': 'Token required'}, status=401)
         try:
@@ -37,13 +37,15 @@ def token_required(func):
         return func(request, *args, **kwargs)
     return wrapper
 
+def get_csrf_token(request):
+    return JsonResponse({'csrf_token': get_token(request)})
+
 """
 @brief: 用户注册，用户只需要提供用户名和密码，而用户唯一的ID是由服务器生成的，会在注册成功后返回给用户
 @param: username: 用户名 password: 密码
 @return: userID: 用户ID
 @date: 24/5/8
 """
-@csrf_exempt
 @json_body_required
 def register(request):
     # 获取请求的username和password
@@ -87,12 +89,23 @@ def login(request):
 @date: 24/5/8
 """
 @json_body_required
+@token_required
 def changePassword(request):
     data = request.json_body
     userID = data.get('userID')
     oldPassword = data.get('oldPassword')
     newPassword = data.get('newPassword')
-    pass
+
+    try:
+        user = User.objects.get(userID=userID)
+    except ObjectDoesNotExist:
+        return JsonResponse({'error': 'User with given userID does not exist'}, status=404)
+
+    if user.password != oldPassword:
+        return JsonResponse({'error': 'Invalid password'}, status=404)
+    user.password = newPassword
+    user.save()
+    return JsonResponse({'userID': user.userID}, status=200)
 
 """
 @brief: 修改用户名
