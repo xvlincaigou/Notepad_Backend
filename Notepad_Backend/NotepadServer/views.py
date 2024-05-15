@@ -2,13 +2,17 @@ from django.shortcuts import render
 from django.http import HttpResponse, JsonResponse
 from django.core.exceptions import ObjectDoesNotExist
 from django.middleware.csrf import get_token
+from django.core.files.storage import default_storage
 
 import json
 import hashlib
 from datetime import datetime
 import os
+import shutil
+from zhipuai import ZhipuAI
 
 from .models import File, User, Note, Token
+from Notepad_Backend.settings import BASE_DIR
 
 # Create your views here.
 def index(request):
@@ -76,6 +80,7 @@ def register(request):
 @date: 24/5/8
 """
 @json_body_required
+@token_required
 def login(request):
     data = request.json_body
     username = data.get('username')
@@ -114,11 +119,20 @@ def changePassword(request):
 @date: 24/5/8
 """
 @json_body_required
+@token_required
 def changeUsername(request):
     data = request.json_body
     userID = data.get('userID')
     newUsername = data.get('newUsername')
-    pass
+
+    try:
+        user = User.objects.get(userID=userID)
+    except ObjectDoesNotExist:
+        return JsonResponse({'error': 'User with given userID does not exist'}, status=404)
+    
+    user.username = newUsername
+    user.save()
+    return JsonResponse({'userID': user.userID}, status=200)
 
 """
 @brief: 修改用户头像
@@ -130,9 +144,34 @@ def changeUsername(request):
 def changeAvatar(request):
     data = request.json_body
     userID = data.get('userID')
-    newAvatar = data.get('newAvatar')
-    pass
 
+    try:
+        user = User.objects.get(userID=userID)
+    except ObjectDoesNotExist:
+        return JsonResponse({'error': 'User with given userID does not exist'}, status=404)
+
+    if 'newAvatar' not in request.FILES:
+        return JsonResponse({'error': 'No file uploaded'}, status=400)
+
+    file = request.FILES['newAvatar']
+    directory = os.path.join(BASE_DIR, 'userData', userID, 'avatar')
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+    else:
+        # Delete all files in the directory except the newest one
+        files = os.listdir(directory)
+        files.sort(key=lambda x: os.path.getmtime(os.path.join(directory, x)))
+        for file in files[:-1]:
+            os.remove(os.path.join(directory, file))
+
+    file_name = default_storage.save(os.path.join(directory, file.name), file)
+    file_url = default_storage.url(file_name)
+
+    user.avatar = file_url
+    user.save()
+
+    return JsonResponse({'userID': user.userID, 'avatar': file_url}, status=200)
+    
 """
 @brief: 修改用户个性签名
 @param: userID: 用户ID newPersonalSignature: 新个性签名
@@ -144,7 +183,15 @@ def changePersonalSignature(request):
     data = request.json_body
     userID = data.get('userID')
     newPersonalSignature = data.get('newPersonalSignature')
-    pass
+
+    try:
+        user = User.objects.get(userID=userID)
+    except ObjectDoesNotExist:
+        return JsonResponse({'error': 'User with given userID does not exist'}, status=404)
+    
+    user.personalSignature = newPersonalSignature
+    user.save()
+    return JsonResponse({'userID': user.userID}, status=200)
 
 """
 @brief: 创建新的笔记（有点怀疑这个到底需不需要，因为按理说笔记是在客户端创建的）
@@ -160,6 +207,13 @@ def createNote(request):
     tip = data.get('tip')
     type = data.get('type')
     content = data.get('content')
+
+    try:
+        user = User.objects.get(userID=userID)
+    except ObjectDoesNotExist:
+        return JsonResponse({'error': 'User with given userID does not exist'}, status=404)
+    
+    
     pass
 
 """
@@ -173,7 +227,23 @@ def deleteNote(request):
     data = request.json_body
     userID = data.get('userID')
     noteID = data.get('noteID')
-    pass
+
+    try:
+        user = User.objects.get(userID=userID)
+    except ObjectDoesNotExist:
+        return JsonResponse({'error': 'User with given userID does not exist'}, status=404)
+    
+    try:
+        note = Note.objects.get(noteID=noteID)
+    except ObjectDoesNotExist:
+        return JsonResponse({'error': 'Note with given noteID does not exist'}, status=404)
+    
+    note.delete()
+
+    note_directory = os.path.join(BASE_DIR, 'userData', userID, noteID)
+    shutil.rmtree(note_directory)
+
+    return JsonResponse({}, status=200)
 
 """
 @brief: 修改笔记（似乎可以细分一下，不然的话把一个笔记全部传上去是不是太费流量了）
@@ -215,3 +285,39 @@ def syncDownload(request):
     data = request.json_body
     userID = data.get('userID')
     pass
+
+"""
+@brief: 与智谱清言API的交互，对于笔记进行处理
+@param: messages: 用户输入的对话
+@return: answer: 机器回答
+@date: 24/5/15
+"""
+@json_body_required
+def chatGLM(request):
+    data = request.json_body
+    message = data.get('message')
+
+    try:
+        config_json_path = os.path.join(BASE_DIR, 'config.json')
+        with open(config_json_path, 'r') as f:
+            config = json.load(f)
+        zhipuAPI_key = config['zhipuAPI_key']
+    except FileNotFoundError:
+        return JsonResponse({'error': 'Config file not found'}, status=404)
+    except KeyError:
+        return JsonResponse({'error': 'zhipuAPI_key not found in config file'}, status=404)
+
+    client = ZhipuAI(api_key=zhipuAPI_key)
+    response = client.chat.completions.create(
+    model="glm-4",  
+        messages=[
+            {"role": "user", "content": message},
+        ],
+        stream=True,
+        )
+    
+    answer = ""
+    for chunk in response:
+        answer += chunk.choices[0].delta.content
+    
+    return JsonResponse({'answer': answer}, status=200)

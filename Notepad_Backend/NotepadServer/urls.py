@@ -8,4 +8,8 @@ urlpatterns = [
     path("register", views.register, name="register"),
     path("login", views.login, name="login"),
     path("changePassword", views.changePassword, name="changePassword"),
+    path("changeUsername", views.changeUsername, name="changeUsername"),
+    path("changeAvatar", views.changeAvatar, name="changeAvatar"),
+    path("changePersonalSignature", views.changePersonalSignature, name="changePersonalSignature"),
+    path("chatGLM", views.chatGLM, name="chatGLM"),
 ]

@@ -141,6 +141,59 @@ public class communicationTest {
         }
     }
 
+    // 请在这里加上不允许输入为空的检测
+    public static void sendPOST_chatGLM(String message) throws IOException {
+        URI uri = null;
+        try {
+            uri = new URI("http://localhost:8000/NotepadServer/chatGLM");
+        } catch (URISyntaxException e) {
+            e.printStackTrace();
+            return;
+        }
+        URL url = uri.toURL();
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("POST");
+        conn.setRequestProperty("Content-Type", "application/json; utf-8");
+        conn.setRequestProperty("Accept", "application/json");
+        
+        String csrfToken = getCSRFToken();
+        conn.setRequestProperty("X-CSRFToken", csrfToken);
+        conn.setRequestProperty("Cookie", "csrftoken=" + csrfToken);
+        conn.setDoOutput(true);
+        conn.setRequestProperty("Authorization", authToken);
+
+        JSONObject jsonInputString = new JSONObject();
+        jsonInputString.put("message", message);
+
+        try(OutputStream os = conn.getOutputStream()) {
+            byte[] input = jsonInputString.toString().getBytes("utf-8");
+            os.write(input, 0, input.length);           
+        }
+
+        int responseCode = conn.getResponseCode();
+        if (responseCode == HttpURLConnection.HTTP_OK) {
+            try(BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "utf-8"))) {
+                StringBuilder response = new StringBuilder();
+                String responseLine = null;
+                while ((responseLine = br.readLine()) != null) {
+                    response.append(responseLine.trim());
+                }
+                JSONObject jsonResponse = new JSONObject(response.toString());
+                String answer = jsonResponse.getString("answer");
+                System.out.println(answer);
+            }
+        } else {
+            try(BufferedReader br = new BufferedReader(new InputStreamReader(conn.getErrorStream(), "utf-8"))) {
+                StringBuilder response = new StringBuilder();
+                String responseLine = null;
+                while ((responseLine = br.readLine()) != null) {
+                    response.append(responseLine.trim());
+                }
+                System.out.println("Error: " + response.toString());
+            }
+        }
+    }
+
     public static void main(String[] args) {
         try {
             int functionNumber = Integer.parseInt(args[0]);
@@ -151,7 +204,9 @@ public class communicationTest {
                 case 2:
                     sendPOST_changePassword("8374be20", "123456", "654321");
                     break;
-                // 添加更多的 case 语句来调用其他函数
+                case 3:
+                    sendPOST_chatGLM("请你为我做一下心理疏导。");
+                    break;
                 default:
                     System.out.println("Invalid function number");
                     break;
