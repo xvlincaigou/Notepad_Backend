@@ -26,6 +26,10 @@ class User(models.Model):
     avatar = models.ImageField(upload_to=get_file_path, null=True)
     # 个性签名
     personalSignature = models.CharField(max_length=100, null=True)
+    # token
+    token = models.CharField(max_length=64, null=True)
+    # 上次登录时间
+    lastLoginTime = models.DateTimeField(null=True)
 
 class Note(models.Model):
     # 标题
@@ -44,7 +48,3 @@ class Note(models.Model):
     lastEditTime = models.DateTimeField()
     # 最后保存到云端的时间
     lastSaveToCloudTime = models.DateTimeField()
-
-class Token(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
-    token = models.CharField(max_length=64)

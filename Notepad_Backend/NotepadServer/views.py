@@ -1,23 +1,25 @@
 from django.shortcuts import render
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse, JsonResponse, FileResponse
 from django.core.exceptions import ObjectDoesNotExist
 from django.middleware.csrf import get_token
 from django.core.files.storage import default_storage
+from django.utils import timezone
 
 import json
 import hashlib
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 import shutil
 from zhipuai import ZhipuAI
 
-from .models import File, User, Note, Token
+from .models import File, User, Note
 from Notepad_Backend.settings import BASE_DIR
 
 # Create your views here.
 def index(request):
     return HttpResponse("Hello, world. You're at the NotepadServer index.")
 
+# 用于装饰器，检查请求的body是否是json格式
 def json_body_required(func):
     def wrapper(request, *args, **kwargs):
         try:
@@ -27,20 +29,25 @@ def json_body_required(func):
         return func(request, *args, **kwargs)
     return wrapper
 
+# 用于装饰器，检查请求的header的token是否有效
 def token_required(func):
     def wrapper(request, *args, **kwargs):
         token = request.META.get('HTTP_AUTHORIZATION')
-        print(token)
+        # 如果没有token，返回错误
         if not token:
             return JsonResponse({'error': 'Token required'}, status=401)
+        # 如果token不在数据库里面，返回错误
         try:
-            token = Token.objects.get(token=token)
+            user = User.objects.get(token=token)
         except ObjectDoesNotExist:
             return JsonResponse({'error': 'Invalid token'}, status=401)
-        request.user = token.user
+        # 如果token过期，返回错误
+        if user.lastLoginTime < timezone.now() - timedelta(days=7):
+            return JsonResponse({'error': 'Token expired'}, status=401)
         return func(request, *args, **kwargs)
     return wrapper
 
+# 用于装饰器，返回csrf token
 def get_csrf_token(request):
     return JsonResponse({'csrf_token': get_token(request)})
 
@@ -48,7 +55,7 @@ def get_csrf_token(request):
 @brief: 用户注册，用户只需要提供用户名和密码，而用户唯一的ID是由服务器生成的，会在注册成功后返回给用户
 @param: username: 用户名 password: 密码
 @return: userID: 用户ID
-@date: 24/5/8
+@date: 24/5/19
 """
 @json_body_required
 def register(request):
@@ -62,30 +69,47 @@ def register(request):
     hash_object = hashlib.sha1((username + password + now.strftime("%Y-%m-%d %H:%M:%S")).encode())
     hex_dig = hash_object.hexdigest()
 
-    # 向数据库里面写入数据，这里可以暂时不写入头像和个性签名，用null代替
-    user = User(userID=hex_dig[:8], username=username, password=password)
+    # 向数据库里面写入数据，这里可以暂时不写入头像和个性签名和token，用null代替
+    user = User(userID=hex_dig[:8], username=username, password=password, lastLoginTime=timezone.now() - timedelta(days=8))
     user.save()
 
-    # 创建一个新的令牌
-    token = hashlib.sha256(os.urandom(60)).hexdigest()
-    Token.objects.create(user=user, token=token)
-
     # 返回userID
-    return JsonResponse({'userID': user.userID, 'token': token})
+    return JsonResponse({'userID': user.userID})
 
 """
 @brief: 用户登录
 @param: userID: 用户名 password: 密码
 @return: userID: 用户ID
-@date: 24/5/8
+@date: 24/5/19
 """
 @json_body_required
-@token_required
 def login(request):
     data = request.json_body
-    username = data.get('username')
+    userID = data.get('userID')
     password = data.get('password')
-    pass
+
+    try:
+        user = User.objects.get(userID=userID)
+    except ObjectDoesNotExist:
+        return JsonResponse({'error': 'User with given userID does not exist'}, status=404)
+    
+    if user.password != password:
+        return JsonResponse({'error': 'Invalid password'}, status=404)
+    
+    # 创建一个新的令牌
+    token = hashlib.sha256(os.urandom(60)).hexdigest()
+    user.token = token
+    
+    # 更新最后登录时间
+    user.lastLoginTime = timezone.now()
+    user.save()
+
+    # 返回用户信息 
+    userNoteList = list(user.notes.values())
+    return JsonResponse({'userID': user.userID, 'username': user.username, 'personalSignature': user.personalSignature, 'noteList': userNoteList, 'token': token})
+    # 下载用户头像
+    # 下载笔记列表
+    
 
 """
 @brief: 修改用户密码
@@ -284,7 +308,16 @@ def syncUpload(request):
 def syncDownload(request):
     data = request.json_body
     userID = data.get('userID')
-    pass
+    
+    directory_path = os.path.join(BASE_DIR, 'userData', userID),
+    if os.path.exists(directory_path):
+        with open(directory_path, 'rb') as f:
+            response = HttpResponse(f.read(), content_type='application/octet-stream')
+            response['Content-Disposition'] = 'attachment; filename="{}"'.format(filename)
+            return response
+    else:
+        return HttpResponse("File not found", status=404)
+
 
 """
 @brief: 与智谱清言API的交互，对于笔记进行处理

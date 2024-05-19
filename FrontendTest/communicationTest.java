@@ -7,11 +7,12 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import org.json.JSONObject;
+import org.json.JSONArray;
 
 public class communicationTest {
 
     // 用于存储用户验证身份的token，这里我直接默认存储了第一个用户的token。
-    private static String authToken = "03f6ac911ce046e407721c8d4a93a3788ac09b66716f3070bb1af239a768b831";
+    private static String authToken = "f43322d9b84156398f5e42641de8cb185b2b32fef2f601f7e8e8f5c5d190be7e";
 
     // 这个函数向服务器发送一个 GET 请求以获取 CSRF 令牌    
     public static String getCSRFToken() throws IOException {
@@ -79,9 +80,6 @@ public class communicationTest {
                 while ((responseLine = br.readLine()) != null) {
                     response.append(responseLine.trim());
                 }
-                JSONObject json = new JSONObject(response.toString());
-                authToken = json.getString("token");
-                System.out.println("Auth Token: " + authToken);
             }
         } else {
             System.out.println("POST request not worked");
@@ -106,7 +104,6 @@ public class communicationTest {
         conn.setRequestProperty("X-CSRFToken", csrfToken);
         conn.setRequestProperty("Cookie", "csrftoken=" + csrfToken);
         conn.setDoOutput(true);
-        System.out.println(authToken);
         conn.setRequestProperty("Authorization", authToken);
 
         JSONObject jsonInputString = new JSONObject();
@@ -194,6 +191,78 @@ public class communicationTest {
         }
     }
 
+    public static void sendPOST_login(String userID, String password) throws IOException {
+        URI uri = null;
+        try {
+            uri = new URI("http://localhost:8000/NotepadServer/login");
+        } catch (URISyntaxException e) {
+            e.printStackTrace();
+            return;
+        }
+        URL url = uri.toURL();
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("POST");
+        conn.setRequestProperty("Content-Type", "application/json; utf-8");
+        conn.setRequestProperty("Accept", "application/json");
+        
+        String csrfToken = getCSRFToken();
+        conn.setRequestProperty("X-CSRFToken", csrfToken);
+        conn.setRequestProperty("Cookie", "csrftoken=" + csrfToken);
+        conn.setDoOutput(true);
+
+        JSONObject jsonInputString = new JSONObject();
+        jsonInputString.put("userID", userID);
+        jsonInputString.put("password", password);
+
+        try(OutputStream os = conn.getOutputStream()) {
+            byte[] input = jsonInputString.toString().getBytes("utf-8");
+            os.write(input, 0, input.length);           
+        }
+
+        int responseCode = conn.getResponseCode();
+        if (responseCode == HttpURLConnection.HTTP_OK) {
+            try(BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "utf-8"))) {
+                StringBuilder response = new StringBuilder();
+                String responseLine = null;
+                while ((responseLine = br.readLine()) != null) {
+                    response.append(responseLine.trim());
+                }
+                JSONObject jsonResponse = new JSONObject(response.toString());
+                authToken = jsonResponse.getString("token");
+                String username = jsonResponse.getString("username");
+                // 检查并获取personalSignature
+                String personalSignature;
+                if (jsonResponse.isNull("personalSignature")) {
+                    personalSignature = "";  // 或者其他默认值
+                } else {
+                    personalSignature = jsonResponse.getString("personalSignature");
+                }
+
+                // 检查并获取noteList
+                JSONArray noteList;
+                if (jsonResponse.isNull("noteList")) {
+                    noteList = new JSONArray();  // 或者其他默认值
+                } else {
+                    noteList = jsonResponse.getJSONArray("noteList");
+                }
+
+                System.out.println("Note List: " + noteList.toString());
+                System.out.println("Token: " + authToken);
+                System.out.println("Username: " + username);
+                System.out.println("Personal Signature: " + personalSignature);
+            }
+        } else {
+            try(BufferedReader br = new BufferedReader(new InputStreamReader(conn.getErrorStream(), "utf-8"))) {
+                StringBuilder response = new StringBuilder();
+                String responseLine = null;
+                while ((responseLine = br.readLine()) != null) {
+                    response.append(responseLine.trim());
+                }
+                System.out.println("Error: " + response.toString());
+            }
+        }
+    }
+
     public static void main(String[] args) {
         try {
             int functionNumber = Integer.parseInt(args[0]);
@@ -202,10 +271,13 @@ public class communicationTest {
                     sendPOST_register();
                     break;
                 case 2:
-                    sendPOST_changePassword("8374be20", "123456", "654321");
+                    sendPOST_changePassword("14504993", "123456", "654321");
                     break;
                 case 3:
                     sendPOST_chatGLM("请你为我做一下心理疏导。");
+                    break;
+                case 4:
+                    sendPOST_login("14504993", "654321");
                     break;
                 default:
                     System.out.println("Invalid function number");
