@@ -218,27 +218,32 @@ def changePersonalSignature(request):
     return JsonResponse({'userID': user.userID}, status=200)
 
 """
-@brief: 创建新的笔记（有点怀疑这个到底需不需要，因为按理说笔记是在客户端创建的）
+@brief: 创建（上传）新的笔记
 @param: userID: 用户ID title: 笔记标题 tip: 笔记的tip type: 笔记的类别 content: 笔记的内容
 @return: noteID: 笔记ID
 @date: 24/5/8
 """
-@json_body_required
+@token_required
 def createNote(request):
-    data = request.json_body
+    data = json.loads(request.body)
     userID = data.get('userID')
     title = data.get('title')
     tip = data.get('tip')
     type = data.get('type')
-    content = data.get('content')
+    parentDirectory = data.get('parentDirectory')
 
     try:
         user = User.objects.get(userID=userID)
     except ObjectDoesNotExist:
         return JsonResponse({'error': 'User with given userID does not exist'}, status=404)
     
-    
-    pass
+    note = Note(user=user, title=title, tip=tip, type=type, author=user, lastSaveToCloudTime=timezone.now())
+    # Handle uploaded files
+    for filename, file in request.FILES.items():
+        # Here you can save the file to the desired location
+        # For example, save it to a model's FileField
+        note.file.save(filename, ContentFile(file.read()))
+    note.save()
 
 """
 @brief: 删除笔记
@@ -305,11 +310,18 @@ def syncUpload(request):
 @return: noteList: 笔记列表
 @date: 24/5/8
 """
+@json_body_required
+@token_required
 def syncDownload(request):
     data = request.json_body
     userID = data.get('userID')
+
+    try:
+        user = User.objects.get(userID=userID)
+    except ObjectDoesNotExist:
+        return JsonResponse({'error': 'User with given userID does not exist'}, status=404)
     
-    directory_path = os.path.join(BASE_DIR, 'userData', userID),
+    directory_path = os.path.join(BASE_DIR, 'userData', userID)
     if os.path.exists(directory_path):
         with open(directory_path, 'rb') as f:
             response = HttpResponse(f.read(), content_type='application/octet-stream')
