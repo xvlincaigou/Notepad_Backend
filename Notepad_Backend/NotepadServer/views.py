@@ -12,7 +12,7 @@ import os
 import shutil
 from zhipuai import ZhipuAI
 
-from .models import File, User, Note
+from .models import User, Note
 from Notepad_Backend.settings import BASE_DIR
 
 # Create your views here.

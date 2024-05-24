@@ -1,18 +1,26 @@
 import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.URLConnection;
+import java.nio.file.Files;
+import java.util.ArrayList;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import org.json.JSONObject;
 import org.json.JSONArray;
+import java.io.File;
+import java.io.FileInputStream;
 
 public class communicationTest {
 
     // 用于存储用户验证身份的token，这里我直接默认存储了第一个用户的token。
-    private static String authToken = "f43322d9b84156398f5e42641de8cb185b2b32fef2f601f7e8e8f5c5d190be7e";
+    private static String authToken;
+    private static String userID = "14504993";
 
     // 这个函数向服务器发送一个 GET 请求以获取 CSRF 令牌    
     public static String getCSRFToken() throws IOException {
@@ -263,6 +271,88 @@ public class communicationTest {
         }
     }
 
+    public static void sendPOST_uploadNote(String userID, String title, String tip, String type, File parentDirectory) throws IOException {
+
+        if (!parentDirectory.exists() || !parentDirectory.isDirectory() || parentDirectory.listFiles().length == 0){
+            System.out.println("Parent directory does not exist");
+            return;
+        }
+
+        URI uri = null;
+        try {
+            uri = new URI("http://localhost:8000/NotepadServer/createNote");
+        } catch (URISyntaxException e) {
+            e.printStackTrace();
+            return;
+        }
+        URL url = uri.toURL();
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("POST");
+        conn.setRequestProperty("Accept", "application/json");
+        
+        String csrfToken = getCSRFToken();
+        conn.setRequestProperty("X-CSRFToken", csrfToken);
+        conn.setRequestProperty("Cookie", "csrftoken=" + csrfToken);
+        conn.setDoOutput(true);
+        conn.setRequestProperty("Authorization", authToken);
+
+        JSONObject jsonInputString = new JSONObject();
+        jsonInputString.put("userID", userID);
+        jsonInputString.put("title", title);
+        jsonInputString.put("tip", tip);
+        jsonInputString.put("type", type);
+        jsonInputString.put("parentDirectory", parentDirectory.getPath());
+        
+
+        String boundary = Long.toHexString(System.currentTimeMillis()); // Just generate some unique random value.
+        conn.setRequestProperty("Content-Type", "multipart/form-data; charset=utf-8; boundary=" + boundary);
+        
+        try (OutputStream output = conn.getOutputStream(); PrintWriter writer = new PrintWriter(new OutputStreamWriter(output, "UTF-8"), true)) {
+            // Send JSON data.
+            writer.append("--" + boundary).append("\r\n");
+            writer.append("Content-Disposition: form-data; name=\"json\"").append("\r\n");
+            writer.append("Content-Type: application/json; charset=UTF-8").append("\r\n");
+            writer.append("\r\n");
+            writer.append(jsonInputString.toString()).append("\r\n").flush();
+        
+            // Send binary file.
+            for (File uploadFile: parentDirectory.listFiles()) {
+                writer.append("--" + boundary).append("\r\n");
+                writer.append("Content-Disposition: form-data; name=\"file\"; filename=\"" + uploadFile.getName() + "\"").append("\r\n");
+                writer.append("Content-Type: " + URLConnection.guessContentTypeFromName(uploadFile.getName())).append("\r\n");
+                writer.append("Content-Transfer-Encoding: binary").append("\r\n");
+                writer.append("\r\n").flush();
+                Files.copy(uploadFile.toPath(), output);
+                output.flush(); // Important before continuing with writer!
+                writer.append("\r\n").flush(); // CRLF is important! It indicates end of binary boundary.
+            }
+        
+            // End of multipart/form-data.
+            writer.append("--" + boundary + "--").append("\r\n").flush();
+        }
+
+        int responseCode = conn.getResponseCode();
+        if (responseCode == HttpURLConnection.HTTP_OK) {
+            try(BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "utf-8"))) {
+                StringBuilder response = new StringBuilder();
+                String responseLine = null;
+                while ((responseLine = br.readLine()) != null) {
+                    response.append(responseLine.trim());
+                }
+                System.out.println(response.toString());
+            }
+        } else {
+            try(BufferedReader br = new BufferedReader(new InputStreamReader(conn.getErrorStream(), "utf-8"))) {
+                StringBuilder response = new StringBuilder();
+                String responseLine = null;
+                while ((responseLine = br.readLine()) != null) {
+                    response.append(responseLine.trim());
+                }
+                System.out.println("Error: " + response.toString());
+            }
+        }
+    }
+
     public static void main(String[] args) {
         try {
             int functionNumber = Integer.parseInt(args[0]);
@@ -271,13 +361,17 @@ public class communicationTest {
                     sendPOST_register();
                     break;
                 case 2:
-                    sendPOST_changePassword("14504993", "123456", "654321");
+                    sendPOST_changePassword(userID, "123456", "654321");
                     break;
                 case 3:
                     sendPOST_chatGLM("请你为我做一下心理疏导。");
                     break;
                 case 4:
-                    sendPOST_login("14504993", "654321");
+                    sendPOST_login(userID, "654321");
+                    break;
+                case 5:
+                    File parentDirectory = new File("./userData/1");
+                    sendPOST_uploadNote(userID, "美好的生活", "生活", "dairy", parentDirectory);
                     break;
                 default:
                     System.out.println("Invalid function number");
