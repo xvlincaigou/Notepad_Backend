@@ -116,8 +116,8 @@ def login(request):
 """
 @brief: 修改用户密码
 @param: userID: 用户ID oldPassword: 旧密码 newPassword: 新密码
-@return: userID: 用户ID
-@date: 24/5/8
+@return: message: 操作成功与否的信息
+@date: 24/5/24
 """
 @json_body_required
 @token_required
@@ -136,12 +136,12 @@ def changePassword(request):
         return JsonResponse({'error': 'Invalid password'}, status=404)
     user.password = newPassword
     user.save()
-    return JsonResponse({'userID': user.userID}, status=200)
+    return JsonResponse({'message': 'Success'}, status=200)
 
 """
 @brief: 修改用户名
 @param: userID: 用户ID newUsername: 新用户名
-@return: none
+@return: message: 操作成功与否的信息
 @date: 24/5/8
 """
 @json_body_required
@@ -158,13 +158,13 @@ def changeUsername(request):
     
     user.username = newUsername
     user.save()
-    return JsonResponse({'userID': user.userID}, status=200)
+    return JsonResponse({'message': 'Success'}, status=200)
 
 """
 @brief: 修改用户头像
 @param: userID: 用户ID newAvatar: 新头像
-@return: none
-@date: 24/5/8
+@return: message: 操作成功与否的信息
+@date: 24/5/24
 """
 @json_body_required
 def changeAvatar(request):
@@ -196,13 +196,13 @@ def changeAvatar(request):
     user.avatar = file_url
     user.save()
 
-    return JsonResponse({'userID': user.userID, 'avatar': file_url}, status=200)
+    return JsonResponse({'message': 'Success'}, status=200)
     
 """
 @brief: 修改用户个性签名
 @param: userID: 用户ID newPersonalSignature: 新个性签名
-@return: none
-@date: 24/5/8
+@return: message: 操作成功与否的信息
+@date: 24/5/24
 """
 @json_body_required
 def changePersonalSignature(request):
@@ -217,7 +217,7 @@ def changePersonalSignature(request):
     
     user.personalSignature = newPersonalSignature
     user.save()
-    return JsonResponse({'userID': user.userID}, status=200)
+    return JsonResponse({'message': 'Success'}, status=200)
 
 """
 @brief: 创建（上传）新的笔记
