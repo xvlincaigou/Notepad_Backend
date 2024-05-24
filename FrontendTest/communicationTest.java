@@ -19,8 +19,8 @@ import java.io.FileInputStream;
 public class communicationTest {
 
     // 用于存储用户验证身份的token，这里我直接默认存储了第一个用户的token。
-    private static String authToken;
-    private static String userID = "14504993";
+    private static String authToken = "dd3eacfa1caff5c036e38b9dda491bfc46fb85895b2a49be25c59c8a79cdce8f";
+    private static String userID = "e4188c7b";
 
     // 这个函数向服务器发送一个 GET 请求以获取 CSRF 令牌    
     public static String getCSRFToken() throws IOException {
@@ -88,6 +88,8 @@ public class communicationTest {
                 while ((responseLine = br.readLine()) != null) {
                     response.append(responseLine.trim());
                 }
+                JSONObject jsonResponse = new JSONObject(response.toString());
+                userID = jsonResponse.getString("userID");
             }
         } else {
             System.out.println("POST request not worked");
@@ -271,7 +273,7 @@ public class communicationTest {
         }
     }
 
-    public static void sendPOST_uploadNote(String userID, String title, String tip, String type, File parentDirectory) throws IOException {
+    public static void sendPOST_uploadNote(String userID, String title, String type, File parentDirectory) throws IOException {
 
         if (!parentDirectory.exists() || !parentDirectory.isDirectory() || parentDirectory.listFiles().length == 0){
             System.out.println("Parent directory does not exist");
@@ -299,12 +301,10 @@ public class communicationTest {
         JSONObject jsonInputString = new JSONObject();
         jsonInputString.put("userID", userID);
         jsonInputString.put("title", title);
-        jsonInputString.put("tip", tip);
         jsonInputString.put("type", type);
         jsonInputString.put("parentDirectory", parentDirectory.getPath());
         
-
-        String boundary = Long.toHexString(System.currentTimeMillis()); // Just generate some unique random value.
+        String boundary = Long.toHexString(System.currentTimeMillis()); 
         conn.setRequestProperty("Content-Type", "multipart/form-data; charset=utf-8; boundary=" + boundary);
         
         try (OutputStream output = conn.getOutputStream(); PrintWriter writer = new PrintWriter(new OutputStreamWriter(output, "UTF-8"), true)) {
@@ -367,11 +367,11 @@ public class communicationTest {
                     sendPOST_chatGLM("请你为我做一下心理疏导。");
                     break;
                 case 4:
-                    sendPOST_login(userID, "654321");
+                    sendPOST_login(userID, "123456");
                     break;
                 case 5:
-                    File parentDirectory = new File("./userData/1");
-                    sendPOST_uploadNote(userID, "美好的生活", "生活", "dairy", parentDirectory);
+                    File parentDirectory = new File("userData", "2");
+                    sendPOST_uploadNote(userID, "美好的生活", "dairy", parentDirectory);
                     break;
                 default:
                     System.out.println("Invalid function number");

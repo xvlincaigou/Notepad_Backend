@@ -4,6 +4,8 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.middleware.csrf import get_token
 from django.core.files.storage import default_storage
 from django.utils import timezone
+from django.core.files.base import ContentFile
+from Notepad_Backend.settings import BASE_DIR
 
 import json
 import hashlib
@@ -220,30 +222,45 @@ def changePersonalSignature(request):
 """
 @brief: 创建（上传）新的笔记
 @param: userID: 用户ID title: 笔记标题 tip: 笔记的tip type: 笔记的类别 content: 笔记的内容
-@return: noteID: 笔记ID
-@date: 24/5/8
+@return: message: 操作成功与否的信息
+@date: 24/5/24
 """
 @token_required
 def createNote(request):
-    data = json.loads(request.body)
-    userID = data.get('userID')
-    title = data.get('title')
-    tip = data.get('tip')
-    type = data.get('type')
-    parentDirectory = data.get('parentDirectory')
+    data_string = request.POST['json']
+    data = json.loads(data_string)
+    userID = data['userID']
+    title = data['title']
+    type = data['type']
+    parentDirectory = data['parentDirectory']
 
     try:
         user = User.objects.get(userID=userID)
     except ObjectDoesNotExist:
         return JsonResponse({'error': 'User with given userID does not exist'}, status=404)
     
-    note = Note(user=user, title=title, tip=tip, type=type, author=user, lastSaveToCloudTime=timezone.now())
-    # Handle uploaded files
-    for filename, file in request.FILES.items():
-        # Here you can save the file to the desired location
-        # For example, save it to a model's FileField
-        note.file.save(filename, ContentFile(file.read()))
-    note.save()
+    try:
+        parts = os.path.split(parentDirectory)
+        full_parent_directory = os.path.join(BASE_DIR, parts[0], str(userID), parts[1])
+        os.makedirs(full_parent_directory, exist_ok=True)
+    except FileNotFoundError:
+        return JsonResponse({'error': 'Parent directory does not exist'}, status=404)
+
+    try:
+        note = Note(title=title, type=type, author=user, lastSaveToCloudTime=timezone.now())
+        note.file = {}
+        files = request.FILES.getlist('file')
+        for file in files:
+            save_path = os.path.join(full_parent_directory, file.name)
+            with open(save_path,'wb+') as f:
+                f.write(file.read())
+            note.file[file.name] = save_path
+        f.close()
+        note.save()
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+    return JsonResponse({'Message': 'OKay'}, status=200)
 
 """
 @brief: 删除笔记

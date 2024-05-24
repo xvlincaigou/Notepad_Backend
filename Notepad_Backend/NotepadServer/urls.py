@@ -12,4 +12,5 @@ urlpatterns = [
     path("changeAvatar", views.changeAvatar, name="changeAvatar"),
     path("changePersonalSignature", views.changePersonalSignature, name="changePersonalSignature"),
     path("chatGLM", views.chatGLM, name="chatGLM"),
+    path("createNote", views.createNote, name="createNote"),
 ]
