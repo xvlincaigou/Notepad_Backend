@@ -247,7 +247,7 @@ def createNote(request):
         return JsonResponse({'error': 'Parent directory does not exist'}, status=404)
 
     try:
-        note = Note(title=title, type=type, author=user, lastSaveToCloudTime=timezone.now())
+        note = Note(title=title, type=type, author=user, lastSaveToCloudTime=timezone.now(), demosticId=int(parts[1]))
         note.file = {}
         files = request.FILES.getlist('file')
         for file in files:
@@ -265,14 +265,14 @@ def createNote(request):
 """
 @brief: 删除笔记
 @param: userID: 用户ID noteID: 笔记ID
-@return: none
-@date: 24/5/8
+@return: message: 操作成功与否的信息
+@date: 24/5/25
 """
 @json_body_required
 def deleteNote(request):
     data = request.json_body
     userID = data.get('userID')
-    noteID = data.get('noteID')
+    demosticId = data.get('demosticId')
 
     try:
         user = User.objects.get(userID=userID)
@@ -280,16 +280,18 @@ def deleteNote(request):
         return JsonResponse({'error': 'User with given userID does not exist'}, status=404)
     
     try:
-        note = Note.objects.get(noteID=noteID)
+        note = user.notes.get(demosticId=demosticId)
     except ObjectDoesNotExist:
-        return JsonResponse({'error': 'Note with given noteID does not exist'}, status=404)
+        return JsonResponse({'error': 'Note with given demosticId does not exist'}, status=404)
     
     note.delete()
+    try:
+        note_directory = os.path.join(BASE_DIR, 'userData', userID, demosticId)
+        shutil.rmtree(note_directory)
+    except FileNotFoundError:
+        return JsonResponse({'error': 'Note directory does not exist'}, status=404)
 
-    note_directory = os.path.join(BASE_DIR, 'userData', userID, noteID)
-    shutil.rmtree(note_directory)
-
-    return JsonResponse({}, status=200)
+    return JsonResponse({'message': 'Success'}, status=200)
 
 """
 @brief: 修改笔记（似乎可以细分一下，不然的话把一个笔记全部传上去是不是太费流量了）

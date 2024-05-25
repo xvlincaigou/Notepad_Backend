@@ -28,3 +28,5 @@ class Note(models.Model):
     author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notes')
     # 最后保存到云端的时间
     lastSaveToCloudTime = models.DateTimeField()
+    # 这个note在这个用户的笔记本里面的id
+    demosticId = models.IntegerField(default=0)

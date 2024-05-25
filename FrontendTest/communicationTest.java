@@ -57,7 +57,7 @@ public class communicationTest {
     public static void sendPOST_register() throws IOException {
         URI uri = null;
         try {
-            uri = new URI("http://localhost:8000/NotepadServer/register");
+            uri = new URI("http://android.xulincaigou.online:8000/NotepadServer/register");
         } catch (URISyntaxException e) {
             e.printStackTrace();
             return;
@@ -353,6 +353,57 @@ public class communicationTest {
         }
     }
 
+    public static void sendPOST_deleteNote(String userID, String demosticId) throws IOException {
+        URI uri = null;
+        try {
+            uri = new URI("http://localhost:8000/NotepadServer/deleteNote");
+        } catch (URISyntaxException e) {
+            e.printStackTrace();
+            return;
+        }
+        URL url = uri.toURL();
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("POST");
+        conn.setRequestProperty("Content-Type", "application/json; utf-8");
+        conn.setRequestProperty("Accept", "application/json");
+        
+        String csrfToken = getCSRFToken();
+        conn.setRequestProperty("X-CSRFToken", csrfToken);
+        conn.setRequestProperty("Cookie", "csrftoken=" + csrfToken);
+        conn.setDoOutput(true);
+        conn.setRequestProperty("Authorization", authToken);
+
+        JSONObject jsonInputString = new JSONObject();
+        jsonInputString.put("userID", userID);
+        jsonInputString.put("demosticId", demosticId);
+
+        try(OutputStream os = conn.getOutputStream()) {
+            byte[] input = jsonInputString.toString().getBytes("utf-8");
+            os.write(input, 0, input.length);           
+        }
+
+        int responseCode = conn.getResponseCode();
+        if (responseCode == HttpURLConnection.HTTP_OK) {
+            try(BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "utf-8"))) {
+                StringBuilder response = new StringBuilder();
+                String responseLine = null;
+                while ((responseLine = br.readLine()) != null) {
+                    response.append(responseLine.trim());
+                }
+                System.out.println(response.toString());
+            }
+        } else {
+            try(BufferedReader br = new BufferedReader(new InputStreamReader(conn.getErrorStream(), "utf-8"))) {
+                StringBuilder response = new StringBuilder();
+                String responseLine = null;
+                while ((responseLine = br.readLine()) != null) {
+                    response.append(responseLine.trim());
+                }
+                System.out.println("Error: " + response.toString());
+            }
+        }
+    }
+
     public static void main(String[] args) {
         try {
             int functionNumber = Integer.parseInt(args[0]);
@@ -372,6 +423,9 @@ public class communicationTest {
                 case 5:
                     File parentDirectory = new File("userData", "2");
                     sendPOST_uploadNote(userID, "美好的生活", "dairy", parentDirectory);
+                    break;
+                case 6:
+                    sendPOST_deleteNote(userID, "2");
                     break;
                 default:
                     System.out.println("Invalid function number");
