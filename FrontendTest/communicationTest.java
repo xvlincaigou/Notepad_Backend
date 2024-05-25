@@ -404,6 +404,86 @@ public class communicationTest {
         }
     }
 
+    public static void sendPOST_modifyNote(String userID, String demosticId, String title, String type) {
+        URI uri = null;
+        try {
+            uri = new URI("http://localhost:8000/NotepadServer/modifyNote");
+        } catch (URISyntaxException e) {
+            e.printStackTrace();
+            return;
+        }
+        URL url = uri.toURL();
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("POST");
+        conn.setRequestProperty("Accept", "application/json");
+        
+        String csrfToken = getCSRFToken();
+        conn.setRequestProperty("X-CSRFToken", csrfToken);
+        conn.setRequestProperty("Cookie", "csrftoken=" + csrfToken);
+        conn.setDoOutput(true);
+        conn.setRequestProperty("Authorization", authToken);
+
+        JSONObject jsonInputString = new JSONObject();
+        jsonInputString.put("userID", userID);
+        jsonInputString.put("title", title);
+        jsonInputString.put("type", type);
+        jsonInputString.put("demosticId", demosticId);
+        
+        String boundary = Long.toHexString(System.currentTimeMillis()); 
+        conn.setRequestProperty("Content-Type", "multipart/form-data; charset=utf-8; boundary=" + boundary);
+        
+        try (OutputStream output = conn.getOutputStream(); PrintWriter writer = new PrintWriter(new OutputStreamWriter(output, "UTF-8"), true)) {
+            // Send JSON data.
+            writer.append("--" + boundary).append("\r\n");
+            writer.append("Content-Disposition: form-data; name=\"json\"").append("\r\n");
+            writer.append("Content-Type: application/json; charset=UTF-8").append("\r\n");
+            writer.append("\r\n");
+            writer.append(jsonInputString.toString()).append("\r\n").flush();
+        
+            // Send binary file.
+            //////////////////////////////////////////请注意！！！！////////////////////////////////////////////
+            // 这里需要你完成很多事情。
+            // 1. 获取文件的路径
+            // 2. 判断文件是否应该上传
+            // 3. 上传对应的文件
+            for (File uploadFile: parentDirectory.listFiles()) {
+                writer.append("--" + boundary).append("\r\n");
+                writer.append("Content-Disposition: form-data; name=\"file\"; filename=\"" + uploadFile.getName() + "\"").append("\r\n");
+                writer.append("Content-Type: " + URLConnection.guessContentTypeFromName(uploadFile.getName())).append("\r\n");
+                writer.append("Content-Transfer-Encoding: binary").append("\r\n");
+                writer.append("\r\n").flush();
+                Files.copy(uploadFile.toPath(), output);
+                output.flush(); // Important before continuing with writer!
+                writer.append("\r\n").flush(); // CRLF is important! It indicates end of binary boundary.
+            }
+        
+            // End of multipart/form-data.
+            writer.append("--" + boundary + "--").append("\r\n").flush();
+        }
+
+        int responseCode = conn.getResponseCode();
+        if (responseCode == HttpURLConnection.HTTP_OK) {
+            try(BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "utf-8"))) {
+                StringBuilder response = new StringBuilder();
+                String responseLine = null;
+                while ((responseLine = br.readLine()) != null) {
+                    response.append(responseLine.trim());
+                }
+                System.out.println(response.toString());
+            }
+        } else {
+            try(BufferedReader br = new BufferedReader(new InputStreamReader(conn.getErrorStream(), "utf-8"))) {
+                StringBuilder response = new StringBuilder();
+                String responseLine = null;
+                while ((responseLine = br.readLine()) != null) {
+                    response.append(responseLine.trim());
+                }
+                System.out.println("Error: " + response.toString());
+            }
+        }
+    }   
+
+
     public static void main(String[] args) {
         try {
             int functionNumber = Integer.parseInt(args[0]);
@@ -426,6 +506,9 @@ public class communicationTest {
                     break;
                 case 6:
                     sendPOST_deleteNote(userID, "2");
+                    break;
+                case 7:
+                    sendPOST_modifyNote(userID, "2", "美好的生活", "dairy");
                     break;
                 default:
                     System.out.println("Invalid function number");

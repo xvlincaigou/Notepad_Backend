@@ -81,7 +81,7 @@ def register(request):
 """
 @brief: 用户登录
 @param: userID: 用户名 password: 密码
-@return: userID: 用户ID
+@return: 用户的基本信息和笔记列表，用户得到笔记列表之后会向服务器发起请求，下载对应的笔记
 @date: 24/5/19
 """
 @json_body_required
@@ -269,6 +269,7 @@ def createNote(request):
 @date: 24/5/25
 """
 @json_body_required
+@token_required
 def deleteNote(request):
     data = request.json_body
     userID = data.get('userID')
@@ -295,33 +296,50 @@ def deleteNote(request):
 
 """
 @brief: 修改笔记（似乎可以细分一下，不然的话把一个笔记全部传上去是不是太费流量了）
-@param: userID: 用户ID noteID: 笔记ID title: 笔记标题 tip: 笔记的tip type: 笔记的类别 content: 笔记的内容
-@return: none
-@date: 24/5/8
+@param: userID: 用户ID demosticId: 笔记ID title: 笔记标题 type: 笔记的类别 content: 笔记的内容
+@return: message: 操作成功与否的信息
+@date: 24/5/25
 """
-@json_body_required
+@token_required
 def modifyNote(request):
-    data = request.json_body
-    userID = data.get('userID')
-    noteID = data.get('noteID')
-    title = data.get('title')
-    tip = data.get('tip')
-    type = data.get('type')
-    content = data.get('content')
-    pass
+    data_string = request.POST['json']
+    data = json.loads(data_string)
+    userID = data['userID']
+    demosticId = data.get('demosticId')
+    title = data['title']
+    type = data['type']
 
-"""
-@brief: 同步上传笔记
-@param: userID: 用户ID noteID: 笔记列表
-@return: none
-@date: 24/5/8
-"""
-@json_body_required
-def syncUpload(request):
-    data = request.json_body
-    userID = data.get('userID')
-    noteList = data.get('noteList')
-    pass
+    try:
+        user = User.objects.get(userID=userID)
+    except ObjectDoesNotExist:
+        return JsonResponse({'error': 'User with given userID does not exist'}, status=404)
+    
+    try:
+        note = user.notes.get(demosticId=demosticId)
+    except ObjectDoesNotExist:
+        return JsonResponse({'error': 'Note with given demosticId does not exist'}, status=404)
+    
+    full_parent_directory = os.path.join(BASE_DIR, 'userData', str(userID), demosticId)
+
+    try:
+        # 修改对应的title和type
+        note.title = title
+        note.type = type
+        # 把对应的文件更新
+        files = request.FILES.getlist('file')
+        for file in files:
+            save_path = os.path.join(full_parent_directory, file.name)
+            with open(save_path,'wb+') as f:
+                f.write(file.read())
+            note.file[file.name] = save_path
+        f.close()
+        # 修改时间
+        note.lastSaveToCloudTime = timezone.now()
+        note.save()
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+    return JsonResponse({'Message': 'OKay'}, status=200)
 
 """
 @brief: 同步下载笔记
