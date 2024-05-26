@@ -1,10 +1,8 @@
-from django.shortcuts import render
 from django.http import HttpResponse, JsonResponse, FileResponse
 from django.core.exceptions import ObjectDoesNotExist
 from django.middleware.csrf import get_token
 from django.core.files.storage import default_storage
 from django.utils import timezone
-from django.core.files.base import ContentFile
 from Notepad_Backend.settings import BASE_DIR
 
 import json
@@ -44,7 +42,7 @@ def token_required(func):
         except ObjectDoesNotExist:
             return JsonResponse({'error': 'Invalid token'}, status=401)
         # 如果token过期，返回错误
-        if user.lastLoginTime < timezone.now() - timedelta(days=7):
+        if user.lastLoginTime < timezone.now() - timedelta(days=30):
             return JsonResponse({'error': 'Token expired'}, status=401)
         return func(request, *args, **kwargs)
     return wrapper
@@ -82,7 +80,7 @@ def register(request):
 @brief: 用户登录
 @param: userID: 用户名 password: 密码
 @return: 用户的基本信息和笔记列表，用户得到笔记列表之后会向服务器发起请求，下载对应的笔记
-@date: 24/5/19
+@date: 24/5/26
 """
 @json_body_required
 def login(request):
@@ -109,10 +107,27 @@ def login(request):
     # 返回用户信息 
     userNoteList = list(user.notes.values())
     return JsonResponse({'userID': user.userID, 'username': user.username, 'personalSignature': user.personalSignature, 'noteList': userNoteList, 'token': token})
-    # 下载用户头像
-    # 下载笔记列表
-    
 
+"""
+@brief: 获取用户头像
+@param: userID: 用户ID
+@return: 用户头像
+@date: 24/5/26
+"""
+@token_required
+@json_body_required
+def getAvatar(request):
+    data = request.json_body
+    userID = data.get('userID')
+    
+    avatar_path = os.path.join(BASE_DIR, 'userData', userID, 'avatar')
+    try:
+        avatar_file = open(avatar_path, 'rb')
+    except FileNotFoundError:
+        return JsonResponse({'error': 'Avatar not found'}, status=404)
+
+    return FileResponse(avatar_file, as_attachment=True, filename='avatar')
+    
 """
 @brief: 修改用户密码
 @param: userID: 用户ID oldPassword: 旧密码 newPassword: 新密码
@@ -343,30 +358,31 @@ def modifyNote(request):
 
 """
 @brief: 同步下载笔记
-@param: userID: 用户ID
-@return: noteList: 笔记列表
-@date: 24/5/8
+@param: userID: 用户ID, filename: 笔记文件名
+@return: note: 笔记内容
+@date: 24/5/26
 """
 @json_body_required
 @token_required
 def syncDownload(request):
     data = request.json_body
     userID = data.get('userID')
+    demosticId = data.get('demosticId')
+    filename = data.get('filename')
 
     try:
         user = User.objects.get(userID=userID)
     except ObjectDoesNotExist:
         return JsonResponse({'error': 'User with given userID does not exist'}, status=404)
     
-    directory_path = os.path.join(BASE_DIR, 'userData', userID)
-    if os.path.exists(directory_path):
-        with open(directory_path, 'rb') as f:
+    file_path = os.path.join(BASE_DIR, 'userData', userID, str(demosticId), filename)
+    if os.path.exists(file_path):
+        with open(file_path, 'rb') as f:
             response = HttpResponse(f.read(), content_type='application/octet-stream')
             response['Content-Disposition'] = 'attachment; filename="{}"'.format(filename)
             return response
     else:
         return HttpResponse("File not found", status=404)
-
 
 """
 @brief: 与智谱清言API的交互，对于笔记进行处理
