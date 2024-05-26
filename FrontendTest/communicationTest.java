@@ -15,6 +15,7 @@ import org.json.JSONObject;
 import org.json.JSONArray;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 
 public class communicationTest {
 
@@ -403,7 +404,7 @@ public class communicationTest {
             }
         }
     }
-
+    /* 
     public static void sendPOST_modifyNote(String userID, String demosticId, String title, String type) {
         URI uri = null;
         try {
@@ -481,8 +482,65 @@ public class communicationTest {
                 System.out.println("Error: " + response.toString());
             }
         }
-    }   
+    }*/
 
+    //这段代码完成的功能是从服务器下载文件并放到对应的文件路径上面
+    public static void sendPOST_syncDownload(String userID, int demosticId,String filename) throws IOException {
+        URI uri = null;
+        try {
+            uri = new URI("http://localhost:8000/NotepadServer/syncDownload");
+        } catch (URISyntaxException e) {
+            e.printStackTrace();
+            return;
+        }
+        URL url = uri.toURL();
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("POST");
+        conn.setRequestProperty("Content-Type", "application/json; utf-8");
+        conn.setRequestProperty("Accept", "application/json");
+        
+        String csrfToken = getCSRFToken();
+        conn.setRequestProperty("X-CSRFToken", csrfToken);
+        conn.setRequestProperty("Cookie", "csrftoken=" + csrfToken);
+        conn.setDoOutput(true);
+        conn.setRequestProperty("Authorization", authToken);
+
+        JSONObject jsonInputString = new JSONObject();
+        jsonInputString.put("userID", userID);
+        jsonInputString.put("demosticId", demosticId);
+        jsonInputString.put("filename", filename);
+
+        try(OutputStream os = conn.getOutputStream()) {
+            byte[] input = jsonInputString.toString().getBytes("utf-8");
+            os.write(input, 0, input.length);           
+        }
+
+        int responseCode = conn.getResponseCode();
+        if (responseCode == HttpURLConnection.HTTP_OK) {
+            try(BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "utf-8"))) {             
+                String filePath = "userData/" + userID + "/" + demosticId + "/" + filename;
+                File file = new File(filePath);                
+                file.getParentFile().mkdirs();
+                FileOutputStream output = new FileOutputStream(file);
+                System.out.println("./userData/" + userID + "/" + demosticId + filename);
+                byte[] buffer = new byte[4096];
+                int bytesRead = -1;
+                while ((bytesRead = conn.getInputStream().read(buffer)) != -1) {
+                    output.write(buffer, 0, bytesRead);
+                }
+                output.close();
+            }
+        } else {
+            try(BufferedReader br = new BufferedReader(new InputStreamReader(conn.getErrorStream(), "utf-8"))) {
+                StringBuilder response = new StringBuilder();
+                String responseLine = null;
+                while ((responseLine = br.readLine()) != null) {
+                    response.append(responseLine.trim());
+                }
+                System.out.println("Error: " + response.toString());
+            }
+        }
+    }
 
     public static void main(String[] args) {
         try {
@@ -507,8 +565,11 @@ public class communicationTest {
                 case 6:
                     sendPOST_deleteNote(userID, "2");
                     break;
-                case 7:
+                /*case 7:
                     sendPOST_modifyNote(userID, "2", "美好的生活", "dairy");
+                    break;*/
+                case 8:
+                    sendPOST_syncDownload(userID, 1,"1.txt");
                     break;
                 default:
                     System.out.println("Invalid function number");
