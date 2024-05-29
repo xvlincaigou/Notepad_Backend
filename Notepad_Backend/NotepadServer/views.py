@@ -181,13 +181,14 @@ def changeUsername(request):
 @brief: 修改用户头像
 @param: userID: 用户ID newAvatar: 新头像
 @return: message: 操作成功与否的信息
-@date: 24/5/24
+@date: 24/5/29
 """
-@json_body_required
+@token_required
 @csrf_exempt
 def changeAvatar(request):
-    data = request.json_body
-    userID = data.get('userID')
+    data_string = request.POST['json']
+    data = json.loads(data_string)
+    userID = data['userID']
 
     try:
         user = User.objects.get(userID=userID)
@@ -202,11 +203,9 @@ def changeAvatar(request):
     if not os.path.exists(directory):
         os.makedirs(directory)
     else:
-        # Delete all files in the directory except the newest one
         files = os.listdir(directory)
-        files.sort(key=lambda x: os.path.getmtime(os.path.join(directory, x)))
-        for file in files[:-1]:
-            os.remove(os.path.join(directory, file))
+        for single_file in files:
+            os.remove(os.path.join(directory, single_file))
 
     file_name = default_storage.save(os.path.join(directory, file.name), file)
     file_url = default_storage.url(file_name)

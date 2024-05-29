@@ -481,6 +481,76 @@ public class communicationTest {
         }
     }
 
+    public static void sendPOST_changeAvatar(String userID, String filePath) throws IOException{
+        File newAvatar = new File(filePath);
+        if (!newAvatar.exists()){
+            System.out.println("Avatar does not exist");
+            return;
+        }
+    
+        URI uri = null;
+        try {
+            uri = new URI(urlsuffix + "changeAvatar");
+        } catch (URISyntaxException e) {
+            e.printStackTrace();
+            return;
+        }
+        URL url = uri.toURL();
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("POST");
+        conn.setRequestProperty("Accept", "application/json");
+        conn.setDoOutput(true);
+        conn.setRequestProperty("Authorization", authToken);
+    
+        JSONObject jsonInputString = new JSONObject();
+        jsonInputString.put("userID", userID);
+        String boundary = Long.toHexString(System.currentTimeMillis()); 
+        conn.setRequestProperty("Content-Type", "multipart/form-data; charset=utf-8; boundary=" + boundary);
+        
+        try (OutputStream output = conn.getOutputStream(); PrintWriter writer = new PrintWriter(new OutputStreamWriter(output, "UTF-8"), true)) {
+            // Send JSON data.
+            writer.append("--" + boundary).append("\r\n");
+            writer.append("Content-Disposition: form-data; name=\"json\"").append("\r\n");
+            writer.append("Content-Type: application/json; charset=UTF-8").append("\r\n");
+            writer.append("\r\n");
+            writer.append(jsonInputString.toString()).append("\r\n").flush();
+        
+            // Send binary file.
+            writer.append("--" + boundary).append("\r\n");
+            writer.append("Content-Disposition: form-data; name=\"newAvatar\"; filename=\"" + newAvatar.getName() + "\"").append("\r\n");
+            writer.append("Content-Type: " + URLConnection.guessContentTypeFromName(newAvatar.getName())).append("\r\n");
+            writer.append("Content-Transfer-Encoding: binary").append("\r\n");
+            writer.append("\r\n").flush();
+            Files.copy(newAvatar.toPath(), output);
+            output.flush(); // Important before continuing with writer!
+            writer.append("\r\n").flush(); // CRLF is important! It indicates end of binary boundary.
+        
+            // End of multipart/form-data.
+            writer.append("--" + boundary + "--").append("\r\n").flush();
+        }
+
+        int responseCode = conn.getResponseCode();
+        if (responseCode == HttpURLConnection.HTTP_OK) {
+            try(BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "utf-8"))) {
+                StringBuilder response = new StringBuilder();
+                String responseLine = null;
+                while ((responseLine = br.readLine()) != null) {
+                    response.append(responseLine.trim());
+                }
+                System.out.println(response.toString());
+            }
+        } else {
+            try(BufferedReader br = new BufferedReader(new InputStreamReader(conn.getErrorStream(), "utf-8"))) {
+                StringBuilder response = new StringBuilder();
+                String responseLine = null;
+                while ((responseLine = br.readLine()) != null) {
+                    response.append(responseLine.trim());
+                }
+                System.out.println("Error: " + response.toString());
+            }
+        }
+    }
+
     public static void main(String[] args) {
         try {
             int functionNumber = Integer.parseInt(args[0]);
@@ -509,6 +579,9 @@ public class communicationTest {
                     break;*/
                 case 8:
                     sendPOST_syncDownload(userID, 1,"1.txt");
+                    break;
+                case 9:
+                    sendPOST_changeAvatar(userID, "./userData/avatar/1.jpg");
                     break;
                 default:
                     System.out.println("Invalid function number");
