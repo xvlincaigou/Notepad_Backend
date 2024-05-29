@@ -120,13 +120,15 @@ def getAvatar(request):
     data = request.json_body
     userID = data.get('userID')
     
-    avatar_path = os.path.join(BASE_DIR, 'userData', userID, 'avatar')
+    avatar_directory = os.path.join(BASE_DIR, 'userData', userID, 'avatar')
     try:
+        avatar_filename = os.listdir(avatar_directory)[0]  # Get the first file in the directory
+        avatar_path = os.path.join(avatar_directory, avatar_filename)
         avatar_file = open(avatar_path, 'rb')
-    except FileNotFoundError:
+    except (FileNotFoundError, IndexError):
         return JsonResponse({'error': 'Avatar not found'}, status=404)
 
-    return FileResponse(avatar_file, as_attachment=True, filename='avatar')
+    return FileResponse(avatar_file, as_attachment=True, filename=avatar_filename)
     
 """
 @brief: 修改用户密码

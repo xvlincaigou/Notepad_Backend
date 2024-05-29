@@ -9,6 +9,7 @@ import java.net.URLConnection;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import org.json.JSONObject;
@@ -551,6 +552,66 @@ public class communicationTest {
         }
     }
 
+    public static void sendGET_getAvatar(String userID) throws IOException {
+        URI uri = null;
+        try {
+            uri = new URI(urlsuffix + "getAvatar");
+        } catch (URISyntaxException e) {
+            e.printStackTrace();
+            return;
+        }
+        URL url = uri.toURL();
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("GET");
+        conn.setRequestProperty("Accept", "application/json");
+        conn.setRequestProperty("Authorization", authToken);
+    
+        JSONObject jsonInputString = new JSONObject();
+        jsonInputString.put("userID", userID);
+        conn.setDoOutput(true);
+        try (OutputStream os = conn.getOutputStream()) {
+            byte[] input = jsonInputString.toString().getBytes("utf-8");
+            os.write(input, 0, input.length);           
+        }
+    
+        int code = conn.getResponseCode();
+        System.out.println(code);
+        if (code != 200) {
+            System.out.println("Avatar retrieval failed");
+            return;
+        }
+    
+        InputStream is = conn.getInputStream();
+        FileOutputStream fos = new FileOutputStream(userID + "_avatar.jpg");
+        byte[] buffer = new byte[1024];
+        int len;
+        while ((len = is.read(buffer)) != -1) {
+            fos.write(buffer, 0, len);
+        }
+        fos.close();
+
+        int responseCode = conn.getResponseCode();
+        if (responseCode == HttpURLConnection.HTTP_OK) {
+            try(BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "utf-8"))) {
+                StringBuilder response = new StringBuilder();
+                String responseLine = null;
+                while ((responseLine = br.readLine()) != null) {
+                    response.append(responseLine.trim());
+                }
+                System.out.println(response.toString());
+            }
+        } else {
+            try(BufferedReader br = new BufferedReader(new InputStreamReader(conn.getErrorStream(), "utf-8"))) {
+                StringBuilder response = new StringBuilder();
+                String responseLine = null;
+                while ((responseLine = br.readLine()) != null) {
+                    response.append(responseLine.trim());
+                }
+                System.out.println("Error: " + response.toString());
+            }
+        }
+    }
+
     public static void main(String[] args) {
         try {
             int functionNumber = Integer.parseInt(args[0]);
@@ -582,6 +643,9 @@ public class communicationTest {
                     break;
                 case 9:
                     sendPOST_changeAvatar(userID, "./userData/avatar/1.jpg");
+                    break;
+                case 10:
+                    sendGET_getAvatar(userID);
                     break;
                 default:
                     System.out.println("Invalid function number");
