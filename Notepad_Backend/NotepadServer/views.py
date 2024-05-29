@@ -3,7 +3,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.middleware.csrf import get_token
 from django.core.files.storage import default_storage
 from django.utils import timezone
-from Notepad_Backend.settings import BASE_DIR
+from django.views.decorators.csrf import csrf_exempt
 
 import json
 import hashlib
@@ -47,10 +47,6 @@ def token_required(func):
         return func(request, *args, **kwargs)
     return wrapper
 
-# 用于装饰器，返回csrf token
-def get_csrf_token(request):
-    return JsonResponse({'csrf_token': get_token(request)})
-
 """
 @brief: 用户注册，用户只需要提供用户名和密码，而用户唯一的ID是由服务器生成的，会在注册成功后返回给用户
 @param: username: 用户名 password: 密码
@@ -58,9 +54,11 @@ def get_csrf_token(request):
 @date: 24/5/19
 """
 @json_body_required
+@csrf_exempt
 def register(request):
     # 获取请求的username和password
     data = request.json_body
+    print(data)
     username = data.get('username')
     password = data.get('password')
 
@@ -83,6 +81,7 @@ def register(request):
 @date: 24/5/26
 """
 @json_body_required
+@csrf_exempt
 def login(request):
     data = request.json_body
     userID = data.get('userID')
@@ -116,6 +115,7 @@ def login(request):
 """
 @token_required
 @json_body_required
+@csrf_exempt
 def getAvatar(request):
     data = request.json_body
     userID = data.get('userID')
@@ -136,6 +136,7 @@ def getAvatar(request):
 """
 @json_body_required
 @token_required
+@csrf_exempt
 def changePassword(request):
     data = request.json_body
     userID = data.get('userID')
@@ -161,6 +162,7 @@ def changePassword(request):
 """
 @json_body_required
 @token_required
+@csrf_exempt
 def changeUsername(request):
     data = request.json_body
     userID = data.get('userID')
@@ -182,6 +184,7 @@ def changeUsername(request):
 @date: 24/5/24
 """
 @json_body_required
+@csrf_exempt
 def changeAvatar(request):
     data = request.json_body
     userID = data.get('userID')
@@ -220,6 +223,7 @@ def changeAvatar(request):
 @date: 24/5/24
 """
 @json_body_required
+@csrf_exempt
 def changePersonalSignature(request):
     data = request.json_body
     userID = data.get('userID')
@@ -241,6 +245,7 @@ def changePersonalSignature(request):
 @date: 24/5/24
 """
 @token_required
+@csrf_exempt
 def createNote(request):
     data_string = request.POST['json']
     data = json.loads(data_string)
@@ -285,6 +290,7 @@ def createNote(request):
 """
 @json_body_required
 @token_required
+@csrf_exempt
 def deleteNote(request):
     data = request.json_body
     userID = data.get('userID')
@@ -316,6 +322,7 @@ def deleteNote(request):
 @date: 24/5/25
 """
 @token_required
+@csrf_exempt
 def modifyNote(request):
     data_string = request.POST['json']
     data = json.loads(data_string)
@@ -364,6 +371,7 @@ def modifyNote(request):
 """
 @json_body_required
 @token_required
+@csrf_exempt
 def syncDownload(request):
     data = request.json_body
     userID = data.get('userID')
@@ -391,6 +399,7 @@ def syncDownload(request):
 @date: 24/5/15
 """
 @json_body_required
+@csrf_exempt
 def chatGLM(request):
     data = request.json_body
     message = data.get('message')

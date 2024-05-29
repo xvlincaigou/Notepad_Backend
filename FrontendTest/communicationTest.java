@@ -22,43 +22,12 @@ public class communicationTest {
     // 用于存储用户验证身份的token，这里我直接默认存储了第一个用户的token。
     private static String authToken = "dd3eacfa1caff5c036e38b9dda491bfc46fb85895b2a49be25c59c8a79cdce8f";
     private static String userID = "e4188c7b";
-
-    // 这个函数向服务器发送一个 GET 请求以获取 CSRF 令牌    
-    public static String getCSRFToken() throws IOException {
-        URI uri = null;
-        try {
-            uri = new URI("http://localhost:8000/NotepadServer/get_csrf_token");
-        } catch (URISyntaxException e) {
-            e.printStackTrace();
-            return null;
-        }
-        URL url = uri.toURL();
-        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-        conn.setRequestMethod("GET");
-        conn.setRequestProperty("Accept", "application/json");
-    
-        int responseCode = conn.getResponseCode();
-        if (responseCode == HttpURLConnection.HTTP_OK) {
-            try(BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "utf-8"))) {
-                StringBuilder response = new StringBuilder();
-                String responseLine = null;
-                while ((responseLine = br.readLine()) != null) {
-                    response.append(responseLine.trim());
-                }
-                JSONObject jsonResponse = new JSONObject(response.toString());
-                String csrfToken = jsonResponse.getString("csrf_token");
-                System.out.println("CSRF Token: " + csrfToken);
-                return csrfToken;
-            }
-        } else {
-            throw new IOException("Failed to get CSRF token: HTTP error code : " + responseCode);
-        }
-    }
+    public static String urlsuffix = "http://localhost:8000/NotepadServer/";
 
     public static void sendPOST_register() throws IOException {
         URI uri = null;
         try {
-            uri = new URI("http://android.xulincaigou.online:8000/NotepadServer/register");
+            uri = new URI(urlsuffix + "register");
         } catch (URISyntaxException e) {
             e.printStackTrace();
             return;
@@ -68,10 +37,6 @@ public class communicationTest {
         conn.setRequestMethod("POST");
         conn.setRequestProperty("Content-Type", "application/json; utf-8");
         conn.setRequestProperty("Accept", "application/json");
-
-        String csrfToken = getCSRFToken();
-        conn.setRequestProperty("X-CSRFToken", csrfToken);
-        conn.setRequestProperty("Cookie", "csrftoken=" + csrfToken);
         conn.setDoOutput(true);
     
         String jsonInputString = "{\"username\": \"test\", \"password\": \"123456\"}";
@@ -100,7 +65,7 @@ public class communicationTest {
     public static void sendPOST_changePassword(String userID, String oldPassword, String newPassword) throws IOException {
         URI uri = null;
         try {
-            uri = new URI("http://localhost:8000/NotepadServer/changePassword");
+            uri = new URI(urlsuffix + "changePassword");
         } catch (URISyntaxException e) {
             e.printStackTrace();
             return;
@@ -110,10 +75,6 @@ public class communicationTest {
         conn.setRequestMethod("POST");
         conn.setRequestProperty("Content-Type", "application/json; utf-8");
         conn.setRequestProperty("Accept", "application/json");
-        
-        String csrfToken = getCSRFToken();
-        conn.setRequestProperty("X-CSRFToken", csrfToken);
-        conn.setRequestProperty("Cookie", "csrftoken=" + csrfToken);
         conn.setDoOutput(true);
         conn.setRequestProperty("Authorization", authToken);
 
@@ -153,7 +114,7 @@ public class communicationTest {
     public static void sendPOST_chatGLM(String message) throws IOException {
         URI uri = null;
         try {
-            uri = new URI("http://localhost:8000/NotepadServer/chatGLM");
+            uri = new URI(urlsuffix + "chatGLM");
         } catch (URISyntaxException e) {
             e.printStackTrace();
             return;
@@ -163,10 +124,6 @@ public class communicationTest {
         conn.setRequestMethod("POST");
         conn.setRequestProperty("Content-Type", "application/json; utf-8");
         conn.setRequestProperty("Accept", "application/json");
-        
-        String csrfToken = getCSRFToken();
-        conn.setRequestProperty("X-CSRFToken", csrfToken);
-        conn.setRequestProperty("Cookie", "csrftoken=" + csrfToken);
         conn.setDoOutput(true);
         conn.setRequestProperty("Authorization", authToken);
 
@@ -205,7 +162,7 @@ public class communicationTest {
     public static void sendPOST_login(String userID, String password) throws IOException {
         URI uri = null;
         try {
-            uri = new URI("http://localhost:8000/NotepadServer/login");
+            uri = new URI(urlsuffix + "login");
         } catch (URISyntaxException e) {
             e.printStackTrace();
             return;
@@ -215,10 +172,6 @@ public class communicationTest {
         conn.setRequestMethod("POST");
         conn.setRequestProperty("Content-Type", "application/json; utf-8");
         conn.setRequestProperty("Accept", "application/json");
-        
-        String csrfToken = getCSRFToken();
-        conn.setRequestProperty("X-CSRFToken", csrfToken);
-        conn.setRequestProperty("Cookie", "csrftoken=" + csrfToken);
         conn.setDoOutput(true);
 
         JSONObject jsonInputString = new JSONObject();
@@ -283,7 +236,7 @@ public class communicationTest {
 
         URI uri = null;
         try {
-            uri = new URI("http://localhost:8000/NotepadServer/createNote");
+            uri = new URI(urlsuffix + "createNote");
         } catch (URISyntaxException e) {
             e.printStackTrace();
             return;
@@ -292,10 +245,6 @@ public class communicationTest {
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setRequestMethod("POST");
         conn.setRequestProperty("Accept", "application/json");
-        
-        String csrfToken = getCSRFToken();
-        conn.setRequestProperty("X-CSRFToken", csrfToken);
-        conn.setRequestProperty("Cookie", "csrftoken=" + csrfToken);
         conn.setDoOutput(true);
         conn.setRequestProperty("Authorization", authToken);
 
@@ -357,7 +306,7 @@ public class communicationTest {
     public static void sendPOST_deleteNote(String userID, String demosticId) throws IOException {
         URI uri = null;
         try {
-            uri = new URI("http://localhost:8000/NotepadServer/deleteNote");
+            uri = new URI(urlsuffix + "deleteNote");
         } catch (URISyntaxException e) {
             e.printStackTrace();
             return;
@@ -367,10 +316,6 @@ public class communicationTest {
         conn.setRequestMethod("POST");
         conn.setRequestProperty("Content-Type", "application/json; utf-8");
         conn.setRequestProperty("Accept", "application/json");
-        
-        String csrfToken = getCSRFToken();
-        conn.setRequestProperty("X-CSRFToken", csrfToken);
-        conn.setRequestProperty("Cookie", "csrftoken=" + csrfToken);
         conn.setDoOutput(true);
         conn.setRequestProperty("Authorization", authToken);
 
@@ -417,10 +362,6 @@ public class communicationTest {
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setRequestMethod("POST");
         conn.setRequestProperty("Accept", "application/json");
-        
-        String csrfToken = getCSRFToken();
-        conn.setRequestProperty("X-CSRFToken", csrfToken);
-        conn.setRequestProperty("Cookie", "csrftoken=" + csrfToken);
         conn.setDoOutput(true);
         conn.setRequestProperty("Authorization", authToken);
 
@@ -488,7 +429,7 @@ public class communicationTest {
     public static void sendPOST_syncDownload(String userID, int demosticId,String filename) throws IOException {
         URI uri = null;
         try {
-            uri = new URI("http://localhost:8000/NotepadServer/syncDownload");
+            uri = new URI(urlsuffix + "syncDownload");
         } catch (URISyntaxException e) {
             e.printStackTrace();
             return;
@@ -498,10 +439,6 @@ public class communicationTest {
         conn.setRequestMethod("POST");
         conn.setRequestProperty("Content-Type", "application/json; utf-8");
         conn.setRequestProperty("Accept", "application/json");
-        
-        String csrfToken = getCSRFToken();
-        conn.setRequestProperty("X-CSRFToken", csrfToken);
-        conn.setRequestProperty("Cookie", "csrftoken=" + csrfToken);
         conn.setDoOutput(true);
         conn.setRequestProperty("Authorization", authToken);
 
