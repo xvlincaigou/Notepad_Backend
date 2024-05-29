@@ -20,7 +20,7 @@ import java.io.FileOutputStream;
 public class communicationTest {
 
     // 用于存储用户验证身份的token，这里我直接默认存储了第一个用户的token。
-    private static String authToken = "dd3eacfa1caff5c036e38b9dda491bfc46fb85895b2a49be25c59c8a79cdce8f";
+    private static String authToken = "820e62e0c6881fc3f0ce7975f47279ab41e21247f82f82398656cefac1570e0f";
     private static String userID = "e4188c7b";
     public static String urlsuffix = "http://localhost:8000/NotepadServer/";
 
@@ -253,7 +253,9 @@ public class communicationTest {
         jsonInputString.put("title", title);
         jsonInputString.put("type", type);
         jsonInputString.put("parentDirectory", parentDirectory.getPath());
-        
+        String uploadFileListJson = "[{\"content\": \"天上太阳哈呀哈基米诶\", \"type\": \"text\"}, {\"content\":\"./userData/1.jpg\", \"type\": \"image\"}, {\"content\":\"./userData/2.jpg\", \"type\": \"image\"}, {\"content\": \"./userData/3.mp4\", \"type\": \"audio\"}]";
+        JSONArray jsonArray = new JSONArray(uploadFileListJson);
+        jsonInputString.put("uploadFileListJson", jsonArray);
         String boundary = Long.toHexString(System.currentTimeMillis()); 
         conn.setRequestProperty("Content-Type", "multipart/form-data; charset=utf-8; boundary=" + boundary);
         
@@ -496,7 +498,7 @@ public class communicationTest {
                     sendPOST_login(userID, "123456");
                     break;
                 case 5:
-                    File parentDirectory = new File("userData", "2");
+                    File parentDirectory = new File("userData", "3");
                     sendPOST_uploadNote(userID, "美好的生活", "dairy", parentDirectory);
                     break;
                 case 6:

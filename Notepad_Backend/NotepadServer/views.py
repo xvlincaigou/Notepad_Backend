@@ -240,9 +240,9 @@ def changePersonalSignature(request):
 
 """
 @brief: 创建（上传）新的笔记
-@param: userID: 用户ID title: 笔记标题 tip: 笔记的tip type: 笔记的类别 content: 笔记的内容
+@param: userID: 用户ID title: 笔记标题 type: 笔记的类别 parentDirectory:笔记在本地所在的文件夹名 uploadFileListJson: 笔记的内容
 @return: message: 操作成功与否的信息
-@date: 24/5/24
+@date: 24/5/29
 """
 @token_required
 @csrf_exempt
@@ -253,6 +253,7 @@ def createNote(request):
     title = data['title']
     type = data['type']
     parentDirectory = data['parentDirectory']
+    uploadFileListJson = data['uploadFileListJson']
 
     try:
         user = User.objects.get(userID=userID)
@@ -268,14 +269,19 @@ def createNote(request):
 
     try:
         note = Note(title=title, type=type, author=user, lastSaveToCloudTime=timezone.now(), demosticId=int(parts[1]))
-        note.file = {}
+        note.file = uploadFileListJson
         files = request.FILES.getlist('file')
-        for file in files:
-            save_path = os.path.join(full_parent_directory, file.name)
-            with open(save_path,'wb+') as f:
-                f.write(file.read())
-            note.file[file.name] = save_path
-        f.close()
+        
+        file_index = 0
+        for item in note.file:
+            if item['type'] != 'text':
+                print(item['type'])
+                save_path = os.path.join(full_parent_directory, files[file_index].name)
+                with open(save_path,'wb+') as f:
+                    f.write(files[file_index].read())
+                item['content'] = save_path
+                file_index += 1
+        
         note.save()
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)

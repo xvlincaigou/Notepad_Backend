@@ -22,7 +22,7 @@ class Note(models.Model):
     title = models.CharField(max_length=30)
     # 类型：inspiration、diary、todo、other
     type = models.CharField(max_length=10)
-    # 笔记当中存储的所有文件的路径
+    # 笔记当中存储的所有文件的路径以及文字内容本身
     file = models.JSONField()
     # 作者，存储了作者的ID
     author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notes')
