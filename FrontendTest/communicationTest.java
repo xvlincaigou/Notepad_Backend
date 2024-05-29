@@ -7,6 +7,8 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLConnection;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.io.IOException;
 import java.io.InputStream;
@@ -429,7 +431,7 @@ public class communicationTest {
     }*/
 
     //这段代码完成的功能是从服务器下载文件并放到对应的文件路径上面
-    public static void sendPOST_syncDownload(String userID, int demosticId,String filename) throws IOException {
+    public static void sendPOST_syncDownload(String path) throws IOException {
         URI uri = null;
         try {
             uri = new URI(urlsuffix + "syncDownload");
@@ -446,9 +448,7 @@ public class communicationTest {
         conn.setRequestProperty("Authorization", authToken);
 
         JSONObject jsonInputString = new JSONObject();
-        jsonInputString.put("userID", userID);
-        jsonInputString.put("demosticId", demosticId);
-        jsonInputString.put("filename", filename);
+        jsonInputString.put("path", path);
 
         try(OutputStream os = conn.getOutputStream()) {
             byte[] input = jsonInputString.toString().getBytes("utf-8");
@@ -457,28 +457,21 @@ public class communicationTest {
 
         int responseCode = conn.getResponseCode();
         if (responseCode == HttpURLConnection.HTTP_OK) {
-            try(BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "utf-8"))) {             
-                String filePath = "userData/" + userID + "/" + demosticId + "/" + filename;
-                File file = new File(filePath);                
-                file.getParentFile().mkdirs();
-                FileOutputStream output = new FileOutputStream(file);
-                System.out.println("./userData/" + userID + "/" + demosticId + filename);
-                byte[] buffer = new byte[4096];
-                int bytesRead = -1;
-                while ((bytesRead = conn.getInputStream().read(buffer)) != -1) {
-                    output.write(buffer, 0, bytesRead);
-                }
-                output.close();
+            Path p = Paths.get(path);
+            String filename = p.getFileName().toString();
+            // 这里需要改成你希望存放的地方////////////////////////////////////////////////////////////////////////////////////////
+            String filePath = "./11111/" + filename;
+            File file = new File(filePath);                
+            file.getParentFile().mkdirs();
+            FileOutputStream output = new FileOutputStream(file);
+            byte[] buffer = new byte[4096];
+            int bytesRead = -1;
+            while ((bytesRead = conn.getInputStream().read(buffer)) != -1) {
+                output.write(buffer, 0, bytesRead);
             }
+            output.close();
         } else {
-            try(BufferedReader br = new BufferedReader(new InputStreamReader(conn.getErrorStream(), "utf-8"))) {
-                StringBuilder response = new StringBuilder();
-                String responseLine = null;
-                while ((responseLine = br.readLine()) != null) {
-                    response.append(responseLine.trim());
-                }
-                System.out.println("Error: " + response.toString());
-            }
+            System.out.println("File download failed");
         }
     }
 
@@ -639,7 +632,7 @@ public class communicationTest {
                     sendPOST_modifyNote(userID, "2", "美好的生活", "dairy");
                     break;*/
                 case 8:
-                    sendPOST_syncDownload(userID, 1,"1.txt");
+                    sendPOST_syncDownload("E:\\study\\android_projects\\LargeProject\\Notepad_Backend\\Notepad_Backend\\userData\\e4188c7b\\3\\1.jpg");
                     break;
                 case 9:
                     sendPOST_changeAvatar(userID, "./userData/avatar/1.jpg");

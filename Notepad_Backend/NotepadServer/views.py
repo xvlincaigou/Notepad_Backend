@@ -372,29 +372,22 @@ def modifyNote(request):
 
 """
 @brief: 同步下载笔记
-@param: userID: 用户ID, filename: 笔记文件名
-@return: note: 笔记内容
-@date: 24/5/26
+@param: path: 文件路径
+@return: file: 笔记文件
+@date: 24/5/29
 """
 @json_body_required
 @token_required
 @csrf_exempt
 def syncDownload(request):
     data = request.json_body
-    userID = data.get('userID')
-    demosticId = data.get('demosticId')
-    filename = data.get('filename')
-
-    try:
-        user = User.objects.get(userID=userID)
-    except ObjectDoesNotExist:
-        return JsonResponse({'error': 'User with given userID does not exist'}, status=404)
+    path = data.get('path')
     
-    file_path = os.path.join(BASE_DIR, 'userData', userID, str(demosticId), filename)
+    file_path = os.path.abspath(path)
     if os.path.exists(file_path):
         with open(file_path, 'rb') as f:
             response = HttpResponse(f.read(), content_type='application/octet-stream')
-            response['Content-Disposition'] = 'attachment; filename="{}"'.format(filename)
+            response['Content-Disposition'] = 'attachment; path="{}"'.format(path)
             return response
     else:
         return HttpResponse("File not found", status=404)
