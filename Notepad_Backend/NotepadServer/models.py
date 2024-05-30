@@ -16,6 +16,8 @@ class User(models.Model):
     token = models.CharField(max_length=64, null=True)
     # 上次登录时间
     lastLoginTime = models.DateTimeField(null=True)
+    # 个性化推荐内容
+    personalizedRecommendation = models.TextField(null=True)
 
 class Note(models.Model):
     # 标题

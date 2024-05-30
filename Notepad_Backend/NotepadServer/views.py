@@ -11,6 +11,7 @@ from datetime import datetime, timedelta
 import os
 import shutil
 from zhipuai import ZhipuAI
+import multiprocessing
 
 from .models import User, Note
 from Notepad_Backend.settings import BASE_DIR
@@ -285,8 +286,14 @@ def createNote(request):
                 file_index += 1   
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+    
+    def OK_response():
+        return JsonResponse({'Message': 'OKay'}, status=200)
 
-    return JsonResponse({'Message': 'OKay'}, status=200)
+    return_process = multiprocessing.Process(target=OK_response)
+    chatglm_process = multiprocessing.Process(target=chatGLM, args=(userID, demosticId))
+    return_process.start()
+    chatglm_process.start()
 
 """
 @brief: 删除笔记
@@ -344,17 +351,25 @@ def syncDownload(request):
         return HttpResponse("File not found", status=404)
 
 """
-@brief: 与智谱清言API的交互，对于笔记进行处理
-@param: messages: 用户输入的对话
+@brief: 与智谱清言API的交互，在上传笔记之后立刻调用，生成个性化推荐，存放在数据库里面，可以在用户点击个性化推荐界面的时候展示给用户看
+@param: userID: 用户ID demosticId: 笔记ID
 @return: answer: 机器回答
-@date: 24/5/15
+@date: 24/5/30
 """
 @json_body_required
+@token_required
 @csrf_exempt
-def chatGLM(request):
-    data = request.json_body
-    message = data.get('message')
-
+def chatGLM(userID, demosticId):
+    user = User.objects.get(userID=userID)
+    note = user.notes.get(demosticId=demosticId).file
+    note_text = ""
+    for item in note:
+        if item['type'] == 'text':
+            note_text += item['content']
+    
+    if note_text == "":
+        return
+    
     try:
         config_json_path = os.path.join(BASE_DIR, 'config.json')
         with open(config_json_path, 'r') as f:
@@ -369,7 +384,7 @@ def chatGLM(request):
     response = client.chat.completions.create(
     model="glm-4",  
         messages=[
-            {"role": "user", "content": message},
+            {"role": "user", "content": "请你根据以下内容，进行个性化推荐" + note_text},
         ],
         stream=True,
         )
@@ -378,4 +393,25 @@ def chatGLM(request):
     for chunk in response:
         answer += chunk.choices[0].delta.content
     
-    return JsonResponse({'answer': answer}, status=200)
+    user.personalizedRecommendation = answer
+    user.save()
+
+"""
+@brief: 获取个性化推荐
+@param: userID: 用户ID
+@return: answer: 机器回答
+@date: 24/5/30
+"""
+@json_body_required
+@token_required
+@csrf_exempt
+def return_personalized_recommendation(request):
+    data = request.json_body
+    userID = data.get('userID')
+
+    try:
+        user = User.objects.get(userID=userID)
+    except ObjectDoesNotExist:
+        return JsonResponse({'error': 'User with given userID does not exist'}, status=404)
+    
+    return JsonResponse({'personalizedRecommendation': user.personalizedRecommendation})
