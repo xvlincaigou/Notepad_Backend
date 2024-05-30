@@ -41,9 +41,6 @@ def token_required(func):
             user = User.objects.get(token=token)
         except ObjectDoesNotExist:
             return JsonResponse({'error': 'Invalid token'}, status=401)
-        # 如果token过期，返回错误
-        if user.lastLoginTime < timezone.now() - timedelta(days=30):
-            return JsonResponse({'error': 'Token expired'}, status=401)
         return func(request, *args, **kwargs)
     return wrapper
 
