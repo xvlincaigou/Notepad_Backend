@@ -286,14 +286,11 @@ def createNote(request):
                 file_index += 1   
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
-    
-    def OK_response():
-        return JsonResponse({'Message': 'OKay'}, status=200)
-
-    return_process = multiprocessing.Process(target=OK_response)
+           
     chatglm_process = multiprocessing.Process(target=chatGLM, args=(userID, demosticId))
-    return_process.start()
     chatglm_process.start()
+
+    return JsonResponse({'Message': 'OKay'}, status=200)
 
 """
 @brief: 删除笔记
@@ -321,7 +318,7 @@ def deleteNote(request):
     
     note.delete()
     try:
-        note_directory = os.path.join(BASE_DIR, 'userData', userID, demosticId)
+        note_directory = os.path.join(BASE_DIR, 'userData', userID, str(demosticId))
         shutil.rmtree(note_directory)
     except FileNotFoundError:
         return JsonResponse({'error': 'Note directory does not exist'}, status=404)
@@ -356,9 +353,6 @@ def syncDownload(request):
 @return: answer: 机器回答
 @date: 24/5/30
 """
-@json_body_required
-@token_required
-@csrf_exempt
 def chatGLM(userID, demosticId):
     user = User.objects.get(userID=userID)
     note = user.notes.get(demosticId=demosticId).file
