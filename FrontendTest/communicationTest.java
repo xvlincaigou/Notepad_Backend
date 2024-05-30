@@ -230,13 +230,14 @@ public class communicationTest {
         }
     }
 
-    public static void sendPOST_uploadNote(String userID, String title, String type, File parentDirectory) throws IOException {
-
+    public static void sendPOST_uploadNote(String userID, String title, String type, int demosticId) throws IOException {
+    
+        File parentDirectory = new File("./userData/" + demosticId);
         if (!parentDirectory.exists() || !parentDirectory.isDirectory() || parentDirectory.listFiles().length == 0){
             System.out.println("Parent directory does not exist");
             return;
         }
-
+    
         URI uri = null;
         try {
             uri = new URI(urlsuffix + "createNote");
@@ -250,15 +251,27 @@ public class communicationTest {
         conn.setRequestProperty("Accept", "application/json");
         conn.setDoOutput(true);
         conn.setRequestProperty("Authorization", authToken);
-
+    
         JSONObject jsonInputString = new JSONObject();
         jsonInputString.put("userID", userID);
         jsonInputString.put("title", title);
         jsonInputString.put("type", type);
-        jsonInputString.put("parentDirectory", parentDirectory.getPath());
-        String uploadFileListJson = "[{\"content\": \"天上太阳哈呀哈基米诶\", \"type\": \"text\"}, {\"content\":\"./userData/1.jpg\", \"type\": \"image\"}, {\"content\":\"./userData/2.jpg\", \"type\": \"image\"}, {\"content\": \"./userData/3.mp4\", \"type\": \"audio\"}]";
-        JSONArray jsonArray = new JSONArray(uploadFileListJson);
-        jsonInputString.put("uploadFileListJson", jsonArray);
+        jsonInputString.put("demosticId", demosticId);
+
+        // Generate uploadFileListJson dynamically based on the files in parentDirectory
+        JSONArray uploadFileListJson = new JSONArray();
+        for (File file : parentDirectory.listFiles()) {
+            JSONObject fileJson = new JSONObject();
+            fileJson.put("content", "./userData/" + file.getName());
+            if (file.getName().endsWith(".jpg")) {
+                fileJson.put("type", "image");
+            } else {
+                fileJson.put("type", "audio");
+            }
+            uploadFileListJson.put(fileJson);
+        }
+        jsonInputString.put("uploadFileListJson", uploadFileListJson);
+
         String boundary = Long.toHexString(System.currentTimeMillis()); 
         conn.setRequestProperty("Content-Type", "multipart/form-data; charset=utf-8; boundary=" + boundary);
         
@@ -354,82 +367,7 @@ public class communicationTest {
             }
         }
     }
-    /* 
-    public static void sendPOST_modifyNote(String userID, String demosticId, String title, String type) {
-        URI uri = null;
-        try {
-            uri = new URI("http://localhost:8000/NotepadServer/modifyNote");
-        } catch (URISyntaxException e) {
-            e.printStackTrace();
-            return;
-        }
-        URL url = uri.toURL();
-        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-        conn.setRequestMethod("POST");
-        conn.setRequestProperty("Accept", "application/json");
-        conn.setDoOutput(true);
-        conn.setRequestProperty("Authorization", authToken);
-
-        JSONObject jsonInputString = new JSONObject();
-        jsonInputString.put("userID", userID);
-        jsonInputString.put("title", title);
-        jsonInputString.put("type", type);
-        jsonInputString.put("demosticId", demosticId);
-        
-        String boundary = Long.toHexString(System.currentTimeMillis()); 
-        conn.setRequestProperty("Content-Type", "multipart/form-data; charset=utf-8; boundary=" + boundary);
-        
-        try (OutputStream output = conn.getOutputStream(); PrintWriter writer = new PrintWriter(new OutputStreamWriter(output, "UTF-8"), true)) {
-            // Send JSON data.
-            writer.append("--" + boundary).append("\r\n");
-            writer.append("Content-Disposition: form-data; name=\"json\"").append("\r\n");
-            writer.append("Content-Type: application/json; charset=UTF-8").append("\r\n");
-            writer.append("\r\n");
-            writer.append(jsonInputString.toString()).append("\r\n").flush();
-        
-            // Send binary file.
-            //////////////////////////////////////////请注意！！！！////////////////////////////////////////////
-            // 这里需要你完成很多事情。
-            // 1. 获取文件的路径
-            // 2. 判断文件是否应该上传
-            // 3. 上传对应的文件
-            for (File uploadFile: parentDirectory.listFiles()) {
-                writer.append("--" + boundary).append("\r\n");
-                writer.append("Content-Disposition: form-data; name=\"file\"; filename=\"" + uploadFile.getName() + "\"").append("\r\n");
-                writer.append("Content-Type: " + URLConnection.guessContentTypeFromName(uploadFile.getName())).append("\r\n");
-                writer.append("Content-Transfer-Encoding: binary").append("\r\n");
-                writer.append("\r\n").flush();
-                Files.copy(uploadFile.toPath(), output);
-                output.flush(); // Important before continuing with writer!
-                writer.append("\r\n").flush(); // CRLF is important! It indicates end of binary boundary.
-            }
-        
-            // End of multipart/form-data.
-            writer.append("--" + boundary + "--").append("\r\n").flush();
-        }
-
-        int responseCode = conn.getResponseCode();
-        if (responseCode == HttpURLConnection.HTTP_OK) {
-            try(BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "utf-8"))) {
-                StringBuilder response = new StringBuilder();
-                String responseLine = null;
-                while ((responseLine = br.readLine()) != null) {
-                    response.append(responseLine.trim());
-                }
-                System.out.println(response.toString());
-            }
-        } else {
-            try(BufferedReader br = new BufferedReader(new InputStreamReader(conn.getErrorStream(), "utf-8"))) {
-                StringBuilder response = new StringBuilder();
-                String responseLine = null;
-                while ((responseLine = br.readLine()) != null) {
-                    response.append(responseLine.trim());
-                }
-                System.out.println("Error: " + response.toString());
-            }
-        }
-    }*/
-
+    
     //这段代码完成的功能是从服务器下载文件并放到对应的文件路径上面
     public static void sendPOST_syncDownload(String path) throws IOException {
         URI uri = null;
@@ -622,22 +560,18 @@ public class communicationTest {
                     sendPOST_login(userID, "123456");
                     break;
                 case 5:
-                    File parentDirectory = new File("userData", "3");
-                    sendPOST_uploadNote(userID, "美好的生活", "dairy", parentDirectory);
+                    sendPOST_uploadNote(userID, "美好的生活", "dairy", 3);
                     break;
                 case 6:
                     sendPOST_deleteNote(userID, "2");
                     break;
-                /*case 7:
-                    sendPOST_modifyNote(userID, "2", "美好的生活", "dairy");
-                    break;*/
-                case 8:
+                case 7:
                     sendPOST_syncDownload("E:\\study\\android_projects\\LargeProject\\Notepad_Backend\\Notepad_Backend\\userData\\e4188c7b\\3\\1.jpg");
                     break;
-                case 9:
+                case 8:
                     sendPOST_changeAvatar(userID, "./userData/avatar/1.jpg");
                     break;
-                case 10:
+                case 9:
                     sendGET_getAvatar(userID);
                     break;
                 default:

@@ -237,10 +237,10 @@ def changePersonalSignature(request):
     return JsonResponse({'message': 'Success'}, status=200)
 
 """
-@brief: 创建（上传）新的笔记
-@param: userID: 用户ID title: 笔记标题 type: 笔记的类别 parentDirectory:笔记在本地所在的文件夹名 uploadFileListJson: 笔记的内容
+@brief: 创建新的笔记或者修改笔记
+@param: userID: 用户ID title: 笔记标题 type: 笔记的类别 demosticId: 笔记在作者那里的序号 uploadFileListJson: 笔记的内容
 @return: message: 操作成功与否的信息
-@date: 24/5/29
+@date: 24/5/30
 """
 @token_required
 @csrf_exempt
@@ -250,37 +250,39 @@ def createNote(request):
     userID = data['userID']
     title = data['title']
     type = data['type']
-    parentDirectory = data['parentDirectory']
+    demosticId = data.get('demosticId')
     uploadFileListJson = data['uploadFileListJson']
 
     try:
         user = User.objects.get(userID=userID)
     except ObjectDoesNotExist:
         return JsonResponse({'error': 'User with given userID does not exist'}, status=404)
-    
-    try:
-        parts = os.path.split(parentDirectory)
-        full_parent_directory = os.path.join(BASE_DIR, parts[0], str(userID), parts[1])
-        os.makedirs(full_parent_directory, exist_ok=True)
-    except FileNotFoundError:
-        return JsonResponse({'error': 'Parent directory does not exist'}, status=404)
+
+    save_directory = os.path.join(BASE_DIR, 'userData', userID, str(demosticId))
+    if not os.path.exists(save_directory):
+        os.makedirs(save_directory)
+    else:
+        files = os.listdir(save_directory)
+        for single_file in files:
+            os.remove(os.path.join(save_directory, single_file))
+
+    if (user.notes.filter(demosticId=demosticId).exists()):
+        note = user.notes.get(demosticId=demosticId)
+        note.title, note.type, note.author, note.lastSaveToCloudTime, note.file = title, type, user, timezone.now(), uploadFileListJson
+    else:
+        note = Note(title=title, type=type, author=user, lastSaveToCloudTime=timezone.now(), demosticId=demosticId, file=uploadFileListJson)
+    note.save()
 
     try:
-        note = Note(title=title, type=type, author=user, lastSaveToCloudTime=timezone.now(), demosticId=int(parts[1]))
-        note.file = uploadFileListJson
         files = request.FILES.getlist('file')
-        
         file_index = 0
         for item in note.file:
             if item['type'] != 'text':
-                print(item['type'])
-                save_path = os.path.join(full_parent_directory, files[file_index].name)
+                save_path = os.path.join(save_directory, files[file_index].name)
                 with open(save_path,'wb+') as f:
                     f.write(files[file_index].read())
                 item['content'] = save_path
-                file_index += 1
-        
-        note.save()
+                file_index += 1   
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 
@@ -318,54 +320,6 @@ def deleteNote(request):
         return JsonResponse({'error': 'Note directory does not exist'}, status=404)
 
     return JsonResponse({'message': 'Success'}, status=200)
-
-"""
-@brief: 修改笔记（似乎可以细分一下，不然的话把一个笔记全部传上去是不是太费流量了）
-@param: userID: 用户ID demosticId: 笔记ID title: 笔记标题 type: 笔记的类别 content: 笔记的内容
-@return: message: 操作成功与否的信息
-@date: 24/5/25
-"""
-@token_required
-@csrf_exempt
-def modifyNote(request):
-    data_string = request.POST['json']
-    data = json.loads(data_string)
-    userID = data['userID']
-    demosticId = data.get('demosticId')
-    title = data['title']
-    type = data['type']
-
-    try:
-        user = User.objects.get(userID=userID)
-    except ObjectDoesNotExist:
-        return JsonResponse({'error': 'User with given userID does not exist'}, status=404)
-    
-    try:
-        note = user.notes.get(demosticId=demosticId)
-    except ObjectDoesNotExist:
-        return JsonResponse({'error': 'Note with given demosticId does not exist'}, status=404)
-    
-    full_parent_directory = os.path.join(BASE_DIR, 'userData', str(userID), demosticId)
-
-    try:
-        # 修改对应的title和type
-        note.title = title
-        note.type = type
-        # 把对应的文件更新
-        files = request.FILES.getlist('file')
-        for file in files:
-            save_path = os.path.join(full_parent_directory, file.name)
-            with open(save_path,'wb+') as f:
-                f.write(file.read())
-            note.file[file.name] = save_path
-        f.close()
-        # 修改时间
-        note.lastSaveToCloudTime = timezone.now()
-        note.save()
-    except Exception as e:
-        return JsonResponse({'error': str(e)}, status=500)
-
-    return JsonResponse({'Message': 'OKay'}, status=200)
 
 """
 @brief: 同步下载笔记

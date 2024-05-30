@@ -14,6 +14,5 @@ urlpatterns = [
     path("chatGLM", views.chatGLM, name="chatGLM"),
     path("createNote", views.createNote, name="createNote"),
     path("deleteNote", views.deleteNote, name="deleteNote"),
-    path("modifyNote", views.modifyNote, name="modifyNote"),
     path("syncDownload", views.syncDownload, name="syncDownload"),
 ]
