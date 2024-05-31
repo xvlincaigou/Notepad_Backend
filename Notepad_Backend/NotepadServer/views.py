@@ -260,6 +260,7 @@ def createNote(request):
         return JsonResponse({'error': 'User with given userID does not exist'}, status=404)
 
     save_directory = os.path.join(BASE_DIR, 'userData', userID, str(demosticId))
+    print(save_directory)
     if not os.path.exists(save_directory):
         os.makedirs(save_directory)
     else:
@@ -287,6 +288,8 @@ def createNote(request):
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
            
+    note.save()
+
     chatglm_process = multiprocessing.Process(target=chatGLM, args=(userID, demosticId))
     chatglm_process.start()
 

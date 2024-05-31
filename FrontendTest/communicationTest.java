@@ -560,7 +560,7 @@ public class communicationTest {
                     sendPOST_login(userID, "123456");
                     break;
                 case 5:
-                    sendPOST_uploadNote(userID, "美好的生活", "dairy", 3);
+                    sendPOST_uploadNote(userID, "美好的生活", "dairy", 4);
                     break;
                 case 6:
                     sendPOST_deleteNote(userID, "2");
