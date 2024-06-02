@@ -253,6 +253,7 @@ def createNote(request):
     type = data['type']
     demosticId = data.get('demosticId')
     uploadFileListJson = data['uploadFileListJson']
+    print(uploadFileListJson)
 
     try:
         user = User.objects.get(userID=userID)
@@ -400,7 +401,6 @@ def chatGLM(userID, demosticId):
 @date: 24/5/30
 """
 @json_body_required
-@token_required
 @csrf_exempt
 def return_personalized_recommendation(request):
     data = request.json_body
@@ -411,4 +411,4 @@ def return_personalized_recommendation(request):
     except ObjectDoesNotExist:
         return JsonResponse({'error': 'User with given userID does not exist'}, status=404)
     
-    return JsonResponse({'personalizedRecommendation': user.personalizedRecommendation})
+    return JsonResponse({'personalizedRecommendation': user.personalizedRecommendation}, status=200)
